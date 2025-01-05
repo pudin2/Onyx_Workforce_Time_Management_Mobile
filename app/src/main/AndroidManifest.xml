@@ -12,17 +12,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Horas_Extra_Tecnipalma"
         tools:targetApi="31">
+
+        <!-- Actividad principal -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Horas_Extra_Tecnipalma">
+
+            <!-- Intent Filter correctamente ubicado -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-    </application>
 
+        </activity>
+
+        <!-- Segunda actividad -->
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Horas_Extra_Tecnipalma" />
+
+    </application>
 </manifest>
