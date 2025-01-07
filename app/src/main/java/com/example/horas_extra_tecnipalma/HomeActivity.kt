@@ -14,6 +14,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.foundation.background
+import kotlinx.coroutines.launch
+
+import androidx.compose.ui.graphics.Color
+
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,82 +33,164 @@ class HomeActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuScreen() {
-    var selectedOption by remember { mutableStateOf("") }
+    // Crear un estado de la drawer
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+
+
+    ModalNavigationDrawer(
+        drawerContent = {
+            DrawerContent {}
+        },
+        drawerState = drawerState
     ) {
-        // Imagen en la parte superior
-        Image(
-            painter = painterResource(id = R.drawable.image),
-            contentDescription = "Login Image",
-            modifier = Modifier
-                .size(250.dp)
-                .padding(bottom = 32.dp)
-        )
+        Scaffold(
 
-        // Botón desplegable
-        Box {
-            // Botón desplegable
-            Button(
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text(text = "Seleccionar opción")
-            }
 
-            // Menú desplegable que se ancla justo debajo del botón
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Opción 1") },
-                    onClick = {
-                        selectedOption = "Opción 1"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Opción 2") },
-                    onClick = {
-                        selectedOption = "Opción 2"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Opción 3") },
-                    onClick = {
-                        selectedOption = "Opción 3"
-                        expanded = false
+            topBar = {
+                TopAppBar(
+                    title = { Text(text = " ") },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                // Controlar la apertura/cierre del menú lateral
+                                scope.launch {
+                                    if (drawerState.isClosed) {
+                                        drawerState.open()
+                                    } else {
+                                        drawerState.close()
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        }
                     }
                 )
             }
-        }
+        ) { innerPadding ->
 
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Imagen en la parte superior
+                Image(
+                    painter = painterResource(id = R.drawable.image),
+                    contentDescription = "Login Image",
+                    modifier = Modifier
+                        .size(250.dp)
+                        .padding(bottom = 32.dp)
+                )
 
-        // Mostrar el texto solo si se ha seleccionado una opción
-        if (selectedOption.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = " - $selectedOption",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            )
+                // Botón desplegable
+                Box {
+                    Button(
+                        onClick = { expanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(text = "Seleccionar opción")
+                    }
+
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Opción 1") },
+                            onClick = {
+                                selectedOption = "Opción 1"
+                                expanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Opción 2") },
+                            onClick = {
+                                selectedOption = "Opción 2"
+                                expanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Opción 3") },
+                            onClick = {
+                                selectedOption = "Opción 3"
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+
+                // Mostrar el texto solo si se ha seleccionado una opción
+                if (selectedOption.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = " - $selectedOption",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
         }
     }
 }
+
+@Composable
+fun DrawerContent(onItemSelected: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1BA1BF))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.logo2), // Reemplaza con tu imagen
+                contentDescription = "Imagen de perfil",
+                modifier = Modifier
+                    .size(150.dp)
+                    .padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "Página Principal",
+                color = Color.White,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            Divider(color = Color.White.copy(alpha = 0.5f))
+
+            Text(
+                text = "Reporte",
+                color = Color.White,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+
+        }
+    }
+
+}
+
+
 
 @Preview(showBackground = true)
 @Composable
