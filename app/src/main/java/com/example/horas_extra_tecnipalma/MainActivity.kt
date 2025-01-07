@@ -63,7 +63,7 @@ fun LoginScreen(context: Context) {
                     painter = painterResource(id = R.drawable.image),
                     contentDescription = "Login Image",
                     modifier = Modifier
-                        .size(200.dp) // Ajusta el tamaño de la imagen
+                        .size(250.dp) // Ajusta el tamaño de la imagen
                         .padding(bottom = 16.dp) // Espacio entre la imagen y los campos de texto
                 )
 
