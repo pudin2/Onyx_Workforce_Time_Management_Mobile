@@ -16,6 +16,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,7 +39,14 @@ class MainActivity : ComponentActivity() {
 fun LoginScreen(context: Context) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var isRegisterMode by remember { mutableStateOf(false) } // Modo de registro o login
+    var selectedLocation by remember { mutableStateOf("") }
+
+
+    var isRegisterMode by remember { mutableStateOf(false) }
+    var showTextField by remember { mutableStateOf(false) }
+    var additionalInfo by remember { mutableStateOf("") }
+
+
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -41,8 +55,19 @@ fun LoginScreen(context: Context) {
                 modifier = Modifier
                     .padding(padding)
                     .padding(16.dp),
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center, // Centra los elementos verticalmente
+                horizontalAlignment = Alignment.CenterHorizontally // Centra los elementos horizontalmente
             ) {
+
+                Image(
+                    painter = painterResource(id = R.drawable.image),
+                    contentDescription = "Login Image",
+                    modifier = Modifier
+                        .size(200.dp) // Ajusta el tamaño de la imagen
+                        .padding(bottom = 16.dp) // Espacio entre la imagen y los campos de texto
+                )
+
+                // Campo de entrada para el nombre de usuario
                 // Campo de entrada para el nombre de usuario
                 TextField(
                     value = username,
@@ -65,50 +90,87 @@ fun LoginScreen(context: Context) {
                         .padding(bottom = 16.dp)
                 )
 
-                // Botón de acción (Registrar o Iniciar Sesión)
+                // Botón interactivo para seleccionar la ubicación
+                DropdownMenuExample(
+                    selectedLocation = selectedLocation,
+                    onLocationSelected = {
+                        selectedLocation = it
+                        showTextField = (it == "Montaje")
+                    }
+                )
+
+                // Mostrar la caja de texto adicional si se selecciona "Montaje"
+                if (showTextField) {
+                    TextField(
+                        value = additionalInfo,
+                        onValueChange = { additionalInfo = it },
+                        label = { Text("Número de OT") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    )
+                }
+
+                // Botón de login
                 Button(
                     onClick = {
-                        if (isRegisterMode) {
-                            // Registrar el usuario
-                            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                            sharedPreferences.edit().apply {
-                                putString("username", username)
-                                putString("password", password)
-                                apply()
-                            }
-                            Toast.makeText(context, "User Registered!", Toast.LENGTH_SHORT).show()
-                            isRegisterMode = false // Cambiar a modo login
+                        if (username == "admin" && password == "1234") {
+                            // Navegar a HomeActivity si las credenciales son correctas
+                            val intent = Intent(context, HomeActivity::class.java)
+                            context.startActivity(intent)
                         } else {
-                            // Validar las credenciales
-                            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                            val savedUsername = sharedPreferences.getString("username", null)
-                            val savedPassword = sharedPreferences.getString("password", null)
-
-                            if (username == savedUsername && password == savedPassword) {
-                                // Navegar a HomeActivity
-                                val intent = Intent(context, HomeActivity::class.java)
-                                context.startActivity(intent)
-                            } else {
-                                // Mostrar mensaje de error
-                                Toast.makeText(context, "Invalid Username or Password", Toast.LENGTH_SHORT).show()
-                            }
+                            // Mostrar mensaje de error si las credenciales son incorrectas
+                            Toast.makeText(context, "Invalid Username or Password", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (isRegisterMode) "Register" else "Login")
-                }
-
-                // Botón para cambiar entre los modos de registro y login
-                TextButton(
-                    onClick = { isRegisterMode = !isRegisterMode }
-                ) {
-                    Text(if (isRegisterMode) "Already have an account? Login" else "Don't have an account? Register")
+                    Text("Login")
                 }
             }
         }
     )
 }
+
+@Composable
+fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Botón que despliega el menú
+    Button(
+        onClick = { expanded = true },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF1BA1BF), // Color personalizado (Hexadecimal)
+            contentColor = Color.White // Texto blanco
+        )
+    ) {
+        Text(text = "Ubicación: $selectedLocation")
+    }
+
+    // Menú desplegable con las opciones
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        DropdownMenuItem(
+            text = { Text("Planta") },
+            onClick = {
+                onLocationSelected("Planta")
+                expanded = false
+            }
+        )
+        DropdownMenuItem(
+            text = { Text("Montaje") },
+            onClick = {
+                onLocationSelected("Montaje")
+                expanded = false
+            }
+        )
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
