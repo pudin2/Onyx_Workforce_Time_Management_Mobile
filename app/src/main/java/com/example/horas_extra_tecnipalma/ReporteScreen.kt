@@ -1,0 +1,33 @@
+package com.example.horas_extra_tecnipalma
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun ReporteScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Título de la pantalla
+        Text(
+            text = "Pantalla de Reporte",
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botón para futuras acciones
+        Button(onClick = { /* Acción futura */ }) {
+            Text(text = "Generar Reporte")
+        }
+    }
+}

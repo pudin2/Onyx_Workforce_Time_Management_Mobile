@@ -20,6 +20,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
+
 
 
 
@@ -60,7 +62,7 @@ fun LoginScreen(context: Context) {
             ) {
 
                 Image(
-                    painter = painterResource(id = R.drawable.image),
+                    painter = painterResource(id = R.drawable.logor1),
                     contentDescription = "Login Image",
                     modifier = Modifier
                         .size(250.dp) // Ajusta el tamaño de la imagen
@@ -68,11 +70,10 @@ fun LoginScreen(context: Context) {
                 )
 
                 // Campo de entrada para el nombre de usuario
-                // Campo de entrada para el nombre de usuario
                 TextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username") },
+                    label = { Text("Usuario") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
@@ -82,7 +83,7 @@ fun LoginScreen(context: Context) {
                 TextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text("Contraseña") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier
@@ -125,7 +126,7 @@ fun LoginScreen(context: Context) {
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Login")
+                    Text("Ingresar")
                 }
             }
         }
