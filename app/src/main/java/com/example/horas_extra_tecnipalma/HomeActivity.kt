@@ -198,50 +198,69 @@ fun MenuContent() {
                 text = "Opción seleccionada: $selectedOption",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
             )
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // Mostrar el cronómetro en formato HH:mm:ss
-        Text(
-            text = "Tiempo: ${formatTime(elapsedTime)}",
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-        )
+            // Incluir el cronómetro
+            Cronometro()
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Botones de Iniciar y Detener
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(
-                onClick = { isRunning = true },
-                enabled = !isRunning,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4CAF50), // Verde
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = "Iniciar")
-            }
-
-            Button(
-                onClick = { isRunning = false },
-                enabled = isRunning,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF44336), // Rojo
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = "Detener")
-            }
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
 
+@Composable
+fun Cronometro() {
+    var isRunning by remember { mutableStateOf(false) }
+    var elapsedTime by remember { mutableStateOf(0L) } // Tiempo en segundos
 
+    LaunchedEffect(isRunning) {
+        if (isRunning) {
+            while (isRunning) {
+                kotlinx.coroutines.delay(1000L)
+                elapsedTime += 1
+            }
+        }
+    }
 
+    fun formatTime(seconds: Long): String {
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return String.format("%02d:%02d:%02d", hours, minutes, secs)
+    }
 
+    Text(
+        text = "Tiempo: ${formatTime(elapsedTime)}",
+        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+    )
 
+    Spacer(modifier = Modifier.height(8.dp))
 
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Button(
+            onClick = { isRunning = true },
+            enabled = !isRunning,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50),
+                contentColor = Color.White
+            )
+        ) {
+            Text(text = "Iniciar")
+        }
+
+        Button(
+            onClick = { isRunning = false },
+            enabled = isRunning,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFF44336),
+                contentColor = Color.White
+            )
+        ) {
+            Text(text = "Detener")
+        }
+    }
+}
 
 @Composable
 fun DrawerContent(onItemSelected: (String) -> Unit) {
@@ -286,7 +305,7 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
             Divider(color = Color.White.copy(alpha = 0.5f))
 
             Text(
-                text = "Configuración",
+                text = "Detalle",
                 color = Color.White,
                 modifier = Modifier
                     .padding(vertical = 8.dp)
@@ -295,9 +314,6 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
         }
     }
 }
-
-
-
 
 @Preview(showBackground = true)
 @Composable
