@@ -17,7 +17,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="ONYX"
             android:theme="@style/Theme.Horas_Extra_Tecnipalma">
 
             <!-- Intent Filter correctamente ubicado -->
@@ -32,7 +32,7 @@
         <activity
             android:name=".HomeActivity"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="ONYX"
             android:theme="@style/Theme.Horas_Extra_Tecnipalma" />
 
     </application>
