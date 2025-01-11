@@ -25,6 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.clickable
+import kotlinx.coroutines.delay
+
 
 
 
@@ -38,6 +40,7 @@ class HomeActivity : ComponentActivity() {
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuScreen() {
@@ -95,19 +98,16 @@ fun MenuScreen() {
 fun MenuContent() {
     var expanded by remember { mutableStateOf(false) }
     var selectedOption by remember { mutableStateOf("") }
-    var isRunning by remember { mutableStateOf(false) }
-    var elapsedTime by remember { mutableStateOf(0L) } // Tiempo en segundos
+    var elapsedTimeMap by remember { mutableStateOf(mutableMapOf<String, Long>()) }
+    var elapsedTime by remember { mutableStateOf(0L) }
 
-    // Usaremos un remember para manejar el cronómetro
     val coroutineScope = rememberCoroutineScope()
 
-    // Cronómetro: actualiza el tiempo cada segundo cuando está en ejecución
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
-            while (isRunning) {
-                kotlinx.coroutines.delay(1000L) // Espera un segundo
-                elapsedTime += 1 // Incrementa el tiempo en segundos
-            }
+    LaunchedEffect(selectedOption) {
+        elapsedTime = 0L
+        while (true) {
+            delay(1000L)
+            elapsedTime += 1
         }
     }
 
@@ -153,43 +153,18 @@ fun MenuContent() {
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                DropdownMenuItem(
-                    text = { Text("En Turno") },
-                    onClick = {
-                        selectedOption = "En Turno"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Pausa Activa") },
-                    onClick = {
-                        selectedOption = "Pausa Activa"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Almuerzo") },
-                    onClick = {
-                        selectedOption = "Almuerzo"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Descanso") },
-                    onClick = {
-                        selectedOption = "Descanso"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Fuera de Turno") },
-                    onClick = {
-                        selectedOption = "Fuera de Turno"
-                        expanded = false
-                    }
-                )
+                listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno").forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            selectedOption = option
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
+
 
         // Mostrar el texto seleccionado
         if (selectedOption.isNotEmpty()) {
@@ -201,63 +176,11 @@ fun MenuContent() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Incluir el cronómetro
-            Cronometro()
-
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-    }
-}
-
-@Composable
-fun Cronometro() {
-    var isRunning by remember { mutableStateOf(false) }
-    var elapsedTime by remember { mutableStateOf(0L) } // Tiempo en segundos
-
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
-            while (isRunning) {
-                kotlinx.coroutines.delay(1000L)
-                elapsedTime += 1
-            }
-        }
-    }
-
-    fun formatTime(seconds: Long): String {
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return String.format("%02d:%02d:%02d", hours, minutes, secs)
-    }
-
-    Text(
-        text = "Tiempo: ${formatTime(elapsedTime)}",
-        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-    )
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Button(
-            onClick = { isRunning = true },
-            enabled = !isRunning,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4CAF50),
-                contentColor = Color.White
+            // Mostrar el cronómetro
+            Text(
+                text = "Tiempo: ${formatTime(elapsedTime)}",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
             )
-        ) {
-            Text(text = "Iniciar")
-        }
-
-        Button(
-            onClick = { isRunning = false },
-            enabled = isRunning,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFF44336),
-                contentColor = Color.White
-            )
-        ) {
-            Text(text = "Detener")
         }
     }
 }
