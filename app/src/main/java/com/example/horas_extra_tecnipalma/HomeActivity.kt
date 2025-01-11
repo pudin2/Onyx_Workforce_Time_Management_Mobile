@@ -104,12 +104,19 @@ fun MenuContent() {
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(selectedOption) {
-        elapsedTime = 0L
-        while (true) {
-            delay(1000L)
-            elapsedTime += 1
+        if (selectedOption.isNotEmpty()) {
+            // Retomar el tiempo del estado seleccionado o iniciar desde 0
+            elapsedTime = elapsedTimeMap[selectedOption] ?: 0L
+
+            // Inicia el cronómetro
+            while (true) {
+                delay(1000L)
+                elapsedTime += 1
+                elapsedTimeMap[selectedOption] = elapsedTime
+            }
         }
     }
+
 
     // Función para convertir segundos a formato HH:mm:ss
     fun formatTime(seconds: Long): String {
@@ -153,30 +160,55 @@ fun MenuContent() {
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno").forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option) },
-                        onClick = {
-                            selectedOption = option
-                            expanded = false
-                        }
-                    )
-                }
+                DropdownMenuItem(
+                    text = { Text("En Turno") },
+                    onClick = {
+                        selectedOption = "En Turno"
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Pausa Activa") },
+                    onClick = {
+                        selectedOption = "Pausa Activa"
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Almuerzo") },
+                    onClick = {
+                        selectedOption = "Almuerzo"
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Descanso") },
+                    onClick = {
+                        selectedOption = "Descanso"
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Fuera de Turno") },
+                    onClick = {
+                        selectedOption = "Fuera de Turno"
+                        expanded = false
+                    }
+                )
             }
         }
-
 
         // Mostrar el texto seleccionado
         if (selectedOption.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Opción seleccionada: $selectedOption",
+                text = "Estado: $selectedOption",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Mostrar el cronómetro
+            // Mostrar el cronómetro en formato HH:mm:ss
             Text(
                 text = "Tiempo: ${formatTime(elapsedTime)}",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
