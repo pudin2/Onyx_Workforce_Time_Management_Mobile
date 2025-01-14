@@ -8,21 +8,75 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.graphics.Color
+
+
 @Composable
 fun ConfigScreen() {
+    // Lista de detalles
+    val detalles = listOf("Año", "Mes", "Número de Cotización", "Número de OT")
+    // Lista mutable para los valores editables
+    val valores = remember { mutableStateListOf("2025", "", "", "") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Título de la pantalla
         Text(
-            text = "Pantalla de Configuracion",
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+            text = "Detalle",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        // Tabla simulada
+        detalles.forEachIndexed { index, detalle ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Columna de detalle (Texto estático)
+                Text(
+                    text = detalle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(8.dp)
+                )
 
+                // Campo editable o deshabilitado si es "Año"
+                if (index == 0) {
+                    // Campo deshabilitado para "Año"
+                    TextField(
+                        value = valores[index],
+                        onValueChange = {},
+                        enabled = false,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp)
+                    )
+                } else {
+                    // Campos editables para los demás detalles
+                    TextField(
+                        value = valores[index],
+                        onValueChange = { valores[index] = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp),
+                        singleLine = true
+                    )
+                }
+            }
+
+            // Línea divisoria para separar cada fila
+            Divider(color = Color.LightGray, thickness = 1.dp)
+        }
     }
 }

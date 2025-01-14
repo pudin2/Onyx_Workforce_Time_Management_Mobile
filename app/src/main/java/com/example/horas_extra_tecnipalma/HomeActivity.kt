@@ -20,15 +20,22 @@ import androidx.compose.foundation.background
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 
-import androidx.navigation.NavHostController
+
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.clickable
-import kotlinx.coroutines.delay
+
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 
 
+val stateChanges = mutableStateListOf<StateChangeRecord>()
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,32 +105,13 @@ fun MenuScreen() {
 fun MenuContent() {
     var expanded by remember { mutableStateOf(false) }
     var selectedOption by remember { mutableStateOf("") }
-    var elapsedTimeMap by remember { mutableStateOf(mutableMapOf<String, Long>()) }
-    var elapsedTime by remember { mutableStateOf(0L) }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(selectedOption) {
-        if (selectedOption.isNotEmpty()) {
-            // Retomar el tiempo del estado seleccionado o iniciar desde 0
-            elapsedTime = elapsedTimeMap[selectedOption] ?: 0L
-
-            // Inicia el cronómetro
-            while (true) {
-                delay(1000L)
-                elapsedTime += 1
-                elapsedTimeMap[selectedOption] = elapsedTime
-            }
-        }
-    }
+    var selectedTime by remember { mutableStateOf("") }  // ✅ Declaración de selectedTime
 
 
-    // Función para convertir segundos a formato HH:mm:ss
-    fun formatTime(seconds: Long): String {
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return String.format("%02d:%02d:%02d", hours, minutes, secs)
+    // Función para obtener la hora actual en formato HH:mm:ss
+    fun getCurrentTime(): String {
+        val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        return dateFormat.format(Date())
     }
 
     Column(
@@ -146,72 +134,51 @@ fun MenuContent() {
         Box {
             Button(
                 onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Selecciona el Estado")
+                Text(
+                    text = if (selectedOption.isNotEmpty()) {
+                        "Estado: $selectedOption - $selectedTime"
+                    } else {
+                        "Selecciona el Estado"
+                    }
+                )
             }
 
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                onDismissRequest = { expanded = false }
             ) {
-                DropdownMenuItem(
-                    text = { Text("En Turno") },
-                    onClick = {
-                        selectedOption = "En Turno"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Pausa Activa") },
-                    onClick = {
-                        selectedOption = "Pausa Activa"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Almuerzo") },
-                    onClick = {
-                        selectedOption = "Almuerzo"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Descanso") },
-                    onClick = {
-                        selectedOption = "Descanso"
-                        expanded = false
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Fuera de Turno") },
-                    onClick = {
-                        selectedOption = "Fuera de Turno"
-                        expanded = false
-                    }
-                )
+                listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno").forEach { state ->
+                    DropdownMenuItem(
+                        text = { Text(state) },
+                        onClick = {
+                            selectedOption = state
+                            selectedTime = getCurrentTime()
+
+                            // Actualizar o agregar el estado con la nueva hora
+                            val existingRecord = stateChanges.find { it.estado == state }
+                            if (existingRecord != null) {
+                                stateChanges[stateChanges.indexOf(existingRecord)] =
+                                    StateChangeRecord(state, selectedTime)
+                            } else {
+                                stateChanges.add(StateChangeRecord(state, selectedTime))
+                            }
+
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
 
-        // Mostrar el texto seleccionado
+        // Mostrar el texto del estado seleccionado
         if (selectedOption.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Estado: $selectedOption",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Mostrar el cronómetro en formato HH:mm:ss
-            Text(
-                text = "Tiempo: ${formatTime(elapsedTime)}",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                text = "$selectedOption\n$selectedTime",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
     }
