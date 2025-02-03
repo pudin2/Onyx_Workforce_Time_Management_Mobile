@@ -44,6 +44,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.0")
 
+    implementation ("com.google.code.gson:gson:2.8.9")
+    implementation ("org.bouncycastle:bcprov-jdk15to18:1.70")
     implementation ("androidx.compose.ui:ui:1.5.0")
     implementation ("androidx.compose.material3:material3:1.1.0")
     implementation ("androidx.compose.ui:ui-tooling-preview:1.5.0")

@@ -1,5 +1,6 @@
 package com.example.horas_extra_tecnipalma
 
+import android.util.Log
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -7,34 +8,28 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import android.util.Base64
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.google.gson.annotations.SerializedName
+import java.io.InputStream
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+import javax.crypto.spec.IvParameterSpec
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +47,6 @@ fun LoginScreen(context: Context) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf("") }
-    //var isRegisterMode by remember { mutableStateOf(false) }
     var showTextField by remember { mutableStateOf(false) }
     var additionalInfo by remember { mutableStateOf("") }
 
@@ -63,29 +57,28 @@ fun LoginScreen(context: Context) {
                 modifier = Modifier
                     .padding(padding)
                     .padding(16.dp),
-                verticalArrangement = Arrangement.Center, // Centra los elementos verticalmente
-                horizontalAlignment = Alignment.CenterHorizontally // Centra los elementos horizontalmente
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
                 Image(
                     painter = painterResource(id = R.drawable.logor1),
                     contentDescription = "Login Image",
                     modifier = Modifier
-                        .size(250.dp) // Ajusta el tamaño de la imagen
-                        .padding(bottom = 16.dp) // Espacio entre la imagen y los campos de texto
+                        .size(250.dp)
+                        .padding(bottom = 16.dp)
                 )
 
-                // Campo de entrada para el nombre de usuario
                 TextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Usuario") },
+                    label = { Text("Identificación") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
                 )
 
-                // Campo de entrada para la contraseña
                 TextField(
                     value = password,
                     onValueChange = { password = it },
@@ -97,7 +90,6 @@ fun LoginScreen(context: Context) {
                         .padding(bottom = 16.dp)
                 )
 
-                // Botón interactivo para seleccionar la ubicación
                 DropdownMenuExample(
                     selectedLocation = selectedLocation,
                     onLocationSelected = {
@@ -106,7 +98,6 @@ fun LoginScreen(context: Context) {
                     }
                 )
 
-                // Mostrar la caja de texto adicional si se selecciona "Montaje"
                 if (showTextField) {
                     TextField(
                         value = additionalInfo,
@@ -118,16 +109,13 @@ fun LoginScreen(context: Context) {
                     )
                 }
 
-                // Botón de login
                 Button(
                     onClick = {
-                        if (username == "admin" && password == "1234") {
-                            // Navegar a HomeActivity si las credenciales son correctas
+                        if (validateUser(context, username, password)) {
                             val intent = Intent(context, HomeActivity::class.java)
                             context.startActivity(intent)
                         } else {
-                            // Mostrar mensaje de error si las credenciales son incorrectas
-                            Toast.makeText(context, "Invalid Username or Password", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Identificación o contraseña inválida", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -143,19 +131,17 @@ fun LoginScreen(context: Context) {
 fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
-    // Botón que despliega el menú
     Button(
         onClick = { expanded = true },
         modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF1BA1BF), // Color personalizado (Hexadecimal)
-            contentColor = Color.White // Texto blanco
+            containerColor = Color(0xFF1BA1BF),
+            contentColor = Color.White
         )
     ) {
         Text(text = "Ubicación: $selectedLocation")
     }
 
-    // Menú desplegable con las opciones
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = { expanded = false },
@@ -178,10 +164,133 @@ fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    Horas_Extra_TecnipalmaTheme {
-        LoginScreen(context = MainActivity())
+// 📌 Modelo de usuario con identificación y contraseña en Base64
+// 📌 Modelo de usuario
+data class User(
+    @SerializedName("Identificacion") val identificacion: Int,
+    @SerializedName("ContraseñaHash") val contraseñaHash: String
+)
+
+fun validateUser(context: Context, username: String, password: String): Boolean {
+    val claveFileName = "clave.key"
+    val ivFileName = "iv.key"
+    val jsonEncFileName = "Operarios_enc.json"
+
+    try {
+        // 1️⃣ Leer la clave AES de 32 bytes desde assets/
+        val claveBytes = readFileFromAssets(context, claveFileName)
+        if (claveBytes.isEmpty()) {
+            Log.e("VALIDACION", "❌ ERROR: No se pudo leer la clave AES")
+            return false
+        }
+
+        // 2️⃣ Leer el IV de 16 bytes desde assets/
+        val ivBytes = readFileFromAssets(context, ivFileName)
+        if (ivBytes.isEmpty()) {
+            Log.e("VALIDACION", "❌ ERROR: No se pudo leer el IV")
+            return false
+        }
+
+        // 3️⃣ Leer el archivo JSON encriptado desde assets/
+        val encryptedData = readFileFromAssets(context, jsonEncFileName)
+        if (encryptedData.isEmpty()) {
+            Log.e("VALIDACION", "❌ ERROR: No se pudo leer el archivo encriptado")
+            return false
+        }
+
+        // 4️⃣ Desencriptar el JSON
+        val decryptedJson = decryptAES(encryptedData, claveBytes, ivBytes)
+        if (decryptedJson.isEmpty()) {
+            Log.e("VALIDACION", "❌ ERROR: No se pudo desencriptar el JSON")
+            return false
+        }
+
+        Log.d("VALIDACION", "✅ JSON Desencriptado: $decryptedJson")
+
+        // 5️⃣ Convertir JSON a lista de usuarios
+        val gson = Gson()
+        val userType = object : TypeToken<List<User>>() {}.type
+        val users: List<User> = gson.fromJson(decryptedJson, userType)
+
+        val enteredUsername = username.toIntOrNull()
+        if (enteredUsername == null) {
+            Log.e("VALIDACION", "❌ ERROR: Username no es un número válido")
+            return false
+        }
+
+        val user = users.find { it.identificacion == enteredUsername }
+        if (user != null) {
+            val enteredPasswordHash = hashPassword(password)
+            val storedPasswordHashBase64 = user.contraseñaHash
+
+            // 📌 Convertir el hash almacenado de Base64 a HEX
+            val storedPasswordHashBytes = Base64.decode(storedPasswordHashBase64, Base64.DEFAULT)
+            val storedPasswordHashHex = storedPasswordHashBytes.joinToString("") { "%02x".format(it) }.uppercase()
+
+            // 📌 Agregamos logs para verificar qué se está comparando
+            Log.d("VALIDACION", "🔑 Hash ingresado en HEX: $enteredPasswordHash")
+            Log.d("VALIDACION", "📂 Hash almacenado convertido de Base64 a HEX: $storedPasswordHashHex")
+
+// Comparar los hashes en formato HEX
+            return enteredPasswordHash == storedPasswordHashHex
+        } else {
+            Log.e("VALIDACION", "❌ ERROR: Usuario no encontrado en JSON")
+        }
+
+        return false
+
+    } catch (e: Exception) {
+        Log.e("VALIDACION", "❌ ERROR GENERAL: ${e.message}")
+        return false
+    }
+}
+
+// 📌 Función para desencriptar con AES-256 CBC
+fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
+    return try {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        val secretKey = SecretKeySpec(key, "AES")
+        val ivSpec = IvParameterSpec(iv)
+
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
+        val decryptedBytes = cipher.doFinal(data)
+
+        val decryptedText = String(decryptedBytes, StandardCharsets.UTF_8)
+        Log.d("VALIDACION", "✅ Archivo desencriptado correctamente")
+
+        decryptedText
+    } catch (e: Exception) {
+        Log.e("VALIDACION", "❌ ERROR AL DESENCRIPTAR: ${e.message}")
+        ""
+    }
+}
+
+// 📌 Función para generar hash de contraseña con SHA-256
+fun hashPassword(password: String): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+
+    // 📌 Convertir la contraseña a UTF-16LE (igual que SQL Server usa NVARCHAR)
+    val passwordBytes = password.toByteArray(StandardCharsets.UTF_16LE)
+
+    // 📌 Generar hash SHA-256
+    val hashedBytes = digest.digest(passwordBytes)
+
+    // 📌 Convertir a Base64 (si JSON usa Base64)
+    return Base64.encodeToString(hashedBytes, Base64.NO_WRAP)
+}
+
+// 📌 Función para leer archivos desde `assets/`
+fun readFileFromAssets(context: Context, fileName: String): ByteArray {
+    return try {
+        val inputStream: InputStream = context.assets.open(fileName)
+        val bytes = inputStream.readBytes()
+        inputStream.close()
+
+        Log.d("VALIDACION", "📂 Archivo leído: $fileName, Tamaño: ${bytes.size} bytes")
+
+        bytes
+    } catch (e: Exception) {
+        Log.e("VALIDACION", "❌ ERROR LEYENDO ARCHIVO: $fileName - ${e.message}")
+        ByteArray(0)
     }
 }
