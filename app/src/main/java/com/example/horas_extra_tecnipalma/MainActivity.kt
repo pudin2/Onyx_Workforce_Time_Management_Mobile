@@ -19,14 +19,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import android.util.Base64
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.gson.annotations.SerializedName
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
@@ -48,7 +46,7 @@ fun LoginScreen(context: Context) {
     var password by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf("") }
     var showTextField by remember { mutableStateOf(false) }
-    var additionalInfo by remember { mutableStateOf("") }
+    var numeroOT by remember { mutableStateOf("") } 
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -100,8 +98,8 @@ fun LoginScreen(context: Context) {
 
                 if (showTextField) {
                     TextField(
-                        value = additionalInfo,
-                        onValueChange = { additionalInfo = it },
+                        value = numeroOT,
+                        onValueChange = { numeroOT = it }, // 📌 Guardar el valor en numeroOT
                         label = { Text("Número de OT") },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -111,8 +109,20 @@ fun LoginScreen(context: Context) {
 
                 Button(
                     onClick = {
-                        if (validateUser(context, username, password)) {
+                        if (selectedLocation.isEmpty()) {
+                            Toast.makeText(context, "Debe seleccionar una ubicación", Toast.LENGTH_SHORT).show()
+                            Log.e("VALIDACION", "❌ ERROR: Ubicación no seleccionada")
+                        } else if (selectedLocation == "Montaje" && numeroOT.isEmpty()) {
+                            Toast.makeText(context, "Debe ingresar un Número de OT", Toast.LENGTH_SHORT).show()
+                            Log.e("VALIDACION", "❌ ERROR: Número de OT no ingresado")
+                        } else if (validateUser(context, username, password)) {
+                            // 📌 Guardar número de OT si está en "Montaje"
+                            if (selectedLocation == "Montaje") {
+                                Log.d("VALIDACION", "✅ Número de OT guardado: $numeroOT")
+                            }
+
                             val intent = Intent(context, HomeActivity::class.java)
+                            intent.putExtra("NumeroOT", numeroOT)
                             context.startActivity(intent)
                         } else {
                             Toast.makeText(context, "Identificación o contraseña inválida", Toast.LENGTH_SHORT).show()
@@ -126,6 +136,7 @@ fun LoginScreen(context: Context) {
         }
     )
 }
+
 
 @Composable
 fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -> Unit) {
@@ -164,11 +175,9 @@ fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -
     }
 }
 
-// 📌 Modelo de usuario con identificación y contraseña en Base64
-// 📌 Modelo de usuario
 data class User(
     @SerializedName("Identificacion") val identificacion: Int,
-    @SerializedName("ContraseñaHash") val contraseñaHash: String
+    @SerializedName("Contraseña") val contrasena: String
 )
 
 fun validateUser(context: Context, username: String, password: String): Boolean {
@@ -177,28 +186,10 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
     val jsonEncFileName = "Operarios_enc.json"
 
     try {
-        // 1️⃣ Leer la clave AES de 32 bytes desde assets/
         val claveBytes = readFileFromAssets(context, claveFileName)
-        if (claveBytes.isEmpty()) {
-            Log.e("VALIDACION", "❌ ERROR: No se pudo leer la clave AES")
-            return false
-        }
-
-        // 2️⃣ Leer el IV de 16 bytes desde assets/
         val ivBytes = readFileFromAssets(context, ivFileName)
-        if (ivBytes.isEmpty()) {
-            Log.e("VALIDACION", "❌ ERROR: No se pudo leer el IV")
-            return false
-        }
-
-        // 3️⃣ Leer el archivo JSON encriptado desde assets/
         val encryptedData = readFileFromAssets(context, jsonEncFileName)
-        if (encryptedData.isEmpty()) {
-            Log.e("VALIDACION", "❌ ERROR: No se pudo leer el archivo encriptado")
-            return false
-        }
 
-        // 4️⃣ Desencriptar el JSON
         val decryptedJson = decryptAES(encryptedData, claveBytes, ivBytes)
         if (decryptedJson.isEmpty()) {
             Log.e("VALIDACION", "❌ ERROR: No se pudo desencriptar el JSON")
@@ -207,7 +198,6 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
 
         Log.d("VALIDACION", "✅ JSON Desencriptado: $decryptedJson")
 
-        // 5️⃣ Convertir JSON a lista de usuarios
         val gson = Gson()
         val userType = object : TypeToken<List<User>>() {}.type
         val users: List<User> = gson.fromJson(decryptedJson, userType)
@@ -220,19 +210,10 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
 
         val user = users.find { it.identificacion == enteredUsername }
         if (user != null) {
-            val enteredPasswordHash = hashPassword(password)
-            val storedPasswordHashBase64 = user.contraseñaHash
+            Log.d("VALIDACION", "🔑 Contraseña ingresada: $password")
+            Log.d("VALIDACION", "📂 Contraseña almacenada en JSON: ${user.contrasena}")
 
-            // 📌 Convertir el hash almacenado de Base64 a HEX
-            val storedPasswordHashBytes = Base64.decode(storedPasswordHashBase64, Base64.DEFAULT)
-            val storedPasswordHashHex = storedPasswordHashBytes.joinToString("") { "%02x".format(it) }.uppercase()
-
-            // 📌 Agregamos logs para verificar qué se está comparando
-            Log.d("VALIDACION", "🔑 Hash ingresado en HEX: $enteredPasswordHash")
-            Log.d("VALIDACION", "📂 Hash almacenado convertido de Base64 a HEX: $storedPasswordHashHex")
-
-// Comparar los hashes en formato HEX
-            return enteredPasswordHash == storedPasswordHashHex
+            return user.contrasena == password
         } else {
             Log.e("VALIDACION", "❌ ERROR: Usuario no encontrado en JSON")
         }
@@ -245,7 +226,6 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
     }
 }
 
-// 📌 Función para desencriptar con AES-256 CBC
 fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
     return try {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
@@ -255,42 +235,22 @@ fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
         cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
         val decryptedBytes = cipher.doFinal(data)
 
-        val decryptedText = String(decryptedBytes, StandardCharsets.UTF_8)
-        Log.d("VALIDACION", "✅ Archivo desencriptado correctamente")
-
-        decryptedText
+        String(decryptedBytes, StandardCharsets.UTF_8)
     } catch (e: Exception) {
         Log.e("VALIDACION", "❌ ERROR AL DESENCRIPTAR: ${e.message}")
         ""
     }
 }
 
-// 📌 Función para generar hash de contraseña con SHA-256
-fun hashPassword(password: String): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-
-    // 📌 Convertir la contraseña a UTF-16LE (igual que SQL Server usa NVARCHAR)
-    val passwordBytes = password.toByteArray(StandardCharsets.UTF_16LE)
-
-    // 📌 Generar hash SHA-256
-    val hashedBytes = digest.digest(passwordBytes)
-
-    // 📌 Convertir a Base64 (si JSON usa Base64)
-    return Base64.encodeToString(hashedBytes, Base64.NO_WRAP)
-}
-
-// 📌 Función para leer archivos desde `assets/`
 fun readFileFromAssets(context: Context, fileName: String): ByteArray {
     return try {
         val inputStream: InputStream = context.assets.open(fileName)
         val bytes = inputStream.readBytes()
         inputStream.close()
-
-        Log.d("VALIDACION", "📂 Archivo leído: $fileName, Tamaño: ${bytes.size} bytes")
-
         bytes
     } catch (e: Exception) {
         Log.e("VALIDACION", "❌ ERROR LEYENDO ARCHIVO: $fileName - ${e.message}")
         ByteArray(0)
     }
 }
+
