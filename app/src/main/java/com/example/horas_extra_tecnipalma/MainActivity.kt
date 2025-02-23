@@ -29,6 +29,11 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
 
+var loggedUserId: Int? = null
+var loggedUserName: String? = null
+var loggedUserLocation: String? = null
+var loggedUserNumeroOT: String? = null
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,21 +116,29 @@ fun LoginScreen(context: Context) {
                     onClick = {
                         if (selectedLocation.isEmpty()) {
                             Toast.makeText(context, "Debe seleccionar una ubicación", Toast.LENGTH_SHORT).show()
-                            Log.e("VALIDACION", "❌ ERROR: Ubicación no seleccionada")
                         } else if (selectedLocation == "Montaje" && numeroOT.isEmpty()) {
                             Toast.makeText(context, "Debe ingresar un Número de OT", Toast.LENGTH_SHORT).show()
-                            Log.e("VALIDACION", "❌ ERROR: Número de OT no ingresado")
-                        } else if (validateUser(context, username, password)) {
-                            // 📌 Guardar número de OT si está en "Montaje"
-                            if (selectedLocation == "Montaje") {
-                                Log.d("VALIDACION", "✅ Número de OT guardado: $numeroOT")
-                            }
-
-                            val intent = Intent(context, HomeActivity::class.java)
-                            intent.putExtra("NumeroOT", numeroOT)
-                            context.startActivity(intent)
                         } else {
-                            Toast.makeText(context, "Identificación o contraseña inválida", Toast.LENGTH_SHORT).show()
+                            val user = validateUser(context, username, password)
+                            if (user != null) {
+                                // 📌 Guardamos los datos globalmente
+                                loggedUserId = user.identificacion
+                                loggedUserName = user.nombre
+                                loggedUserLocation = selectedLocation
+                                loggedUserNumeroOT = if (selectedLocation == "Montaje") numeroOT else ""
+
+                                Log.d("VALIDACION", "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT")
+
+                                // 📌 Enviar datos a la siguiente pantalla
+                                val intent = Intent(context, HomeActivity::class.java)
+                                intent.putExtra("Identificacion", loggedUserId)
+                                intent.putExtra("Nombre", loggedUserName)
+                                intent.putExtra("Ubicacion", loggedUserLocation)
+                                intent.putExtra("NumeroOT", loggedUserNumeroOT)
+                                context.startActivity(intent)
+                            } else {
+                                Toast.makeText(context, "Identificación o contraseña inválida", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -136,7 +149,6 @@ fun LoginScreen(context: Context) {
         }
     )
 }
-
 
 @Composable
 fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -> Unit) {
@@ -177,10 +189,11 @@ fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -
 
 data class User(
     @SerializedName("Identificacion") val identificacion: Int,
-    @SerializedName("Contraseña") val contrasena: String
+    @SerializedName("Contraseña") val contrasena: String,
+    @SerializedName("Nombre") val nombre: String,
 )
 
-fun validateUser(context: Context, username: String, password: String): Boolean {
+fun validateUser(context: Context, username: String, password: String): User? {
     val claveFileName = "clave.key"
     val ivFileName = "iv.key"
     val jsonEncFileName = "Operarios_enc.json"
@@ -193,7 +206,7 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
         val decryptedJson = decryptAES(encryptedData, claveBytes, ivBytes)
         if (decryptedJson.isEmpty()) {
             Log.e("VALIDACION", "❌ ERROR: No se pudo desencriptar el JSON")
-            return false
+            return null
         }
 
         Log.d("VALIDACION", "✅ JSON Desencriptado: $decryptedJson")
@@ -205,26 +218,18 @@ fun validateUser(context: Context, username: String, password: String): Boolean 
         val enteredUsername = username.toIntOrNull()
         if (enteredUsername == null) {
             Log.e("VALIDACION", "❌ ERROR: Username no es un número válido")
-            return false
+            return null
         }
 
-        val user = users.find { it.identificacion == enteredUsername }
-        if (user != null) {
-            Log.d("VALIDACION", "🔑 Contraseña ingresada: $password")
-            Log.d("VALIDACION", "📂 Contraseña almacenada en JSON: ${user.contrasena}")
-
-            return user.contrasena == password
-        } else {
-            Log.e("VALIDACION", "❌ ERROR: Usuario no encontrado en JSON")
-        }
-
-        return false
+        // 📌 Buscar usuario por Identificación
+        return users.find { it.identificacion == enteredUsername && it.contrasena == password }
 
     } catch (e: Exception) {
         Log.e("VALIDACION", "❌ ERROR GENERAL: ${e.message}")
-        return false
+        return null
     }
 }
+
 
 fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
     return try {

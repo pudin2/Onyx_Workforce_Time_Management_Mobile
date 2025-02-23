@@ -75,7 +75,7 @@ fun ReporteScreen() {
                         .padding(vertical = 8.dp)
                 ) {
                     Text(
-                        text = record.estado,
+                        text = record.estado?:"Sin estado",
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f)
                     )
@@ -84,7 +84,7 @@ fun ReporteScreen() {
                         modifier = Modifier.weight(1f)
                     ) // Fecha de hoy
 
-                    Text(text = record.hora,
+                    Text(text = "hola",
                         textAlign = TextAlign.Center, 
                         modifier = Modifier.weight(1f)
                     )
@@ -96,4 +96,3 @@ fun ReporteScreen() {
 }
 
 
-data class StateChangeRecord(val estado: String, val hora: String)
