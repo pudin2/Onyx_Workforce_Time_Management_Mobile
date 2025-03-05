@@ -7,18 +7,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.compose.runtime.LaunchedEffect
 
+import java.util.Calendar
 
 @Composable
 fun ConfigScreen() {
+
+
+
+    val calendar = Calendar.getInstance()
+    val currentYear = calendar.get(Calendar.YEAR).toString()
+    val currentMonth = (calendar.get(Calendar.MONTH) + 1).toString()
     // Lista de detalles
-    val detalles = listOf("Año", "Mes", "Número de Cotización", "Número de OT")
+    val detalles = listOf("Año", "Mes")
     // Lista mutable para los valores editables
-    val valores = remember { mutableStateListOf("2025", "", "", "") }
+    val valores = remember { mutableStateListOf(currentYear, currentMonth) }
 
     Column(
         modifier = Modifier
@@ -32,7 +44,6 @@ fun ConfigScreen() {
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(bottom = 16.dp)
         )
-
         // Tabla simulada
         detalles.forEachIndexed { index, detalle ->
             Row(
@@ -50,9 +61,8 @@ fun ConfigScreen() {
                         .weight(1f)
                         .padding(8.dp)
                 )
-
                 // Campo editable o deshabilitado si es "Año"
-                if (index == 0) {
+                if (index == 0 || index == 1) {
                     // Campo deshabilitado para "Año"
                     TextField(
                         value = valores[index],
@@ -74,7 +84,6 @@ fun ConfigScreen() {
                     )
                 }
             }
-
             // Línea divisoria para separar cada fila
             Divider(color = Color.LightGray, thickness = 1.dp)
         }

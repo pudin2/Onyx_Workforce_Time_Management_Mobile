@@ -1,10 +1,12 @@
 package com.example.horas_extra_tecnipalma
+import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 
 import android.util.Log
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -19,10 +21,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
+
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.gson.annotations.SerializedName
+
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import javax.crypto.Cipher
@@ -87,7 +90,7 @@ fun LoginScreen(context: Context) {
                     onValueChange = { password = it },
                     label = { Text("Contraseña") },
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -106,6 +109,7 @@ fun LoginScreen(context: Context) {
                         value = numeroOT,
                         onValueChange = { numeroOT = it }, // 📌 Guardar el valor en numeroOT
                         label = { Text("Número de OT") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 16.dp)
