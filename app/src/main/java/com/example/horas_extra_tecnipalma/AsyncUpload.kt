@@ -2,10 +2,13 @@ package com.example.horas_extra_tecnipalma
 
 import android.content.Context
 import android.util.Log
+
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
+
 import java.io.File
 import java.io.FileInputStream
 
@@ -48,10 +51,10 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
         val ftpClient = FTPClient()
         return try {
             // Configuración del servidor FTP: reemplaza con tus datos
-            val server = "192.168.0.108" // Asegúrate de usar la IP correcta (no 127.0.0.1 si se conecta desde un dispositivo remoto)
+            val server = "ftp.tecnipalma.net" // Asegúrate de usar la IP correcta (no 127.0.0.1 si se conecta desde un dispositivo remoto)
             val port = 21
-            val user = "ftp"
-            val pass = "123456"
+            val user = "usrServicios@tecnipalma.net"
+            val pass = "5r9*luf7\$S"
 
             ftpClient.connect(server, port)
             Log.d("FtpUploadWorker", "Conectado al servidor FTP: $server:$port")
@@ -60,7 +63,7 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
             ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
 
             val inputStream = FileInputStream(file)
-            val remoteFilePath = "/ftp/${file.name}"
+            val remoteFilePath = "/entrada/${file.name}"
             Log.d("FtpUploadWorker", "Subiendo archivo: ${file.name} a $remoteFilePath")
             val success = ftpClient.storeFile(remoteFilePath, inputStream)
             inputStream.close()

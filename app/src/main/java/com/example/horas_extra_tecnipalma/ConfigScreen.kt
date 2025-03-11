@@ -10,19 +10,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.compose.runtime.LaunchedEffect
 
 import java.util.Calendar
 
 @Composable
 fun ConfigScreen() {
-
-
 
     val calendar = Calendar.getInstance()
     val currentYear = calendar.get(Calendar.YEAR).toString()
