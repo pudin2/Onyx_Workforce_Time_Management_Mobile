@@ -51,10 +51,10 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
         val ftpClient = FTPClient()
         return try {
             // Configuración del servidor FTP: reemplaza con tus datos
-            val server = "ftp.tecnipalma.net" // Asegúrate de usar la IP correcta (no 127.0.0.1 si se conecta desde un dispositivo remoto)
-            val port = 21
-            val user = "usrServicios@tecnipalma.net"
-            val pass = "5r9*luf7\$S"
+            val server = "190.65.63.135" // Asegúrate de usar la IP correcta (no 127.0.0.1 si se conecta desde un dispositivo remoto)
+            val port = 921
+            val user = "usrServicios"
+            val pass = "pruebas123"
 
             ftpClient.connect(server, port)
             Log.d("FtpUploadWorker", "Conectado al servidor FTP: $server:$port")
@@ -63,7 +63,7 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
             ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
 
             val inputStream = FileInputStream(file)
-            val remoteFilePath = "/entrada/${file.name}"
+            val remoteFilePath = "/controlhoras/entrada/${file.name}"
             Log.d("FtpUploadWorker", "Subiendo archivo: ${file.name} a $remoteFilePath")
             val success = ftpClient.storeFile(remoteFilePath, inputStream)
             inputStream.close()
