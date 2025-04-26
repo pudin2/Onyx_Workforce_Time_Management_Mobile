@@ -29,6 +29,11 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
                 Log.d("FtpUploadWorker", "Archivo ${file.name} subido exitosamente")
                 // Opcional: podrías eliminar el archivo tras una subida exitosa:
                 // file.delete()
+                if (markAsUploaded(file)) {
+                    Log.d("FtpUploadWorker", "Archivo renombrado a ${file.nameWithoutExtension}_uploaded.json")
+                } else {
+                    Log.e("FtpUploadWorker", "No se pudo renombrar ${file.name}")
+                }
             } else {
                 Log.e("FtpUploadWorker", "Error al subir el archivo ${file.name}")
                 allSuccess = false
@@ -44,14 +49,25 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
 
     private fun getAllJsonFiles(context: Context): Array<File>? {
         val filesDir = context.filesDir
-        return filesDir.listFiles { _, name -> name.endsWith(".json") }
+        return filesDir.listFiles { _, name ->
+            name.endsWith(".json")
+                    && !name.contains("_uploaded", ignoreCase = true)
+        }
     }
+
+    private fun markAsUploaded(file: File): Boolean {
+        val parent = file.parentFile ?: return false
+        val newName = file.nameWithoutExtension + "_uploaded.json"
+        val renamed = File(parent, newName)
+        return file.renameTo(renamed)
+    }
+
 
     private fun uploadFileToFTP(file: File): Boolean {
         val ftpClient = FTPClient()
         return try {
             // Configuración del servidor FTP: reemplaza con tus datos
-            val server = "190.65.63.135" // Asegúrate de usar la IP correcta (no 127.0.0.1 si se conecta desde un dispositivo remoto)
+            val server = "190.65.63.135"
             val port = 921
             val user = "usrServicios"
             val pass = "pruebas123"
