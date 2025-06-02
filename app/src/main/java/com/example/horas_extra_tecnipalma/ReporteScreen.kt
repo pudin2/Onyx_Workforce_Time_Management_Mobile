@@ -64,3 +64,5 @@ fun ReporteScreen(stateChanges: List<StateChangeRecord>) {
         }
     }
 }
+
+

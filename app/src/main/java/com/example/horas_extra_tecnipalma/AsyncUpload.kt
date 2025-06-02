@@ -1,41 +1,55 @@
 package com.example.horas_extra_tecnipalma
 
 import android.content.Context
-import android.util.Log
 
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
+import org.apache.commons.net.ftp.FTPFile
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.Calendar
 
 class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker(context, workerParams) {
 
+    private val filenames = listOf("clave.key", "iv.key", "Operarios_enc.json")
+    private val remoteDir  = "/controlhoras/operarios"    // Ajusta al path real en tu FTP
+
     override fun doWork(): Result {
-        Log.d("FtpUploadWorker", "Ejecutando tarea de subida FTP")
+
+        FileLogger.d("FtpUploadWorker", "Sincronizando assets desde FTP si hay novedades")
+        syncAssetsFromFTP(applicationContext)
+
+        FileLogger.d("FtpUploadWorker", "Ejecutando tarea de purga de archivos antiguos")
+        purgeOldUploadedFiles(applicationContext)
+
+        FileLogger.d("FtpUploadWorker", "Ejecutando tarea de subida FTP")
+
         val jsonFiles = getAllJsonFiles(applicationContext)
+
         if (jsonFiles.isNullOrEmpty()) {
-            Log.e("FtpUploadWorker", "No se encontró ningún archivo JSON para subir")
-            return Result.success() // o Result.failure() según la lógica que desees
+            FileLogger.e("FtpUploadWorker", "No se encontró ningún archivo JSON para subir")
+            return Result.success()
         }
 
         var allSuccess = true
+
         for (file in jsonFiles) {
             val success = uploadFileToFTP(file)
             if (success) {
-                Log.d("FtpUploadWorker", "Archivo ${file.name} subido exitosamente")
-                // Opcional: podrías eliminar el archivo tras una subida exitosa:
-                // file.delete()
+                FileLogger.d("FtpUploadWorker", "Archivo ${file.name} subido exitosamente")
+
                 if (markAsUploaded(file)) {
-                    Log.d("FtpUploadWorker", "Archivo renombrado a ${file.nameWithoutExtension}_uploaded.json")
+                    FileLogger.d("FtpUploadWorker", "Archivo renombrado a ${file.nameWithoutExtension}_uploaded.json")
                 } else {
-                    Log.e("FtpUploadWorker", "No se pudo renombrar ${file.name}")
+                    FileLogger.e("FtpUploadWorker", "No se pudo renombrar ${file.name}")
                 }
             } else {
-                Log.e("FtpUploadWorker", "Error al subir el archivo ${file.name}")
+                FileLogger.e("FtpUploadWorker", "Error al subir el archivo ${file.name}")
                 allSuccess = false
             }
         }
@@ -62,6 +76,72 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
         return file.renameTo(renamed)
     }
 
+    private fun purgeOldUploadedFiles(context: Context) {
+        val filesDir = context.filesDir
+        val calendar = Calendar.getInstance().apply {
+            add(Calendar.MONTH, -2)  // restar 2 meses
+        }
+        val threshold = calendar.timeInMillis
+
+        filesDir.listFiles { _, name ->
+            name.endsWith("_uploaded.json", ignoreCase = true)
+        }?.forEach { file ->
+            if (file.lastModified() < threshold) {
+                if (file.delete()) {
+                     FileLogger.d("FtpUploadWorker", "Borrado antiguo: ${file.name}")
+                } else {
+                     FileLogger.e("FtpUploadWorker", "No se pudo borrar: ${file.name}")
+                }
+            }
+        }
+    }
+
+    private fun syncAssetsFromFTP(context: Context) {
+        val ftp = FTPClient()
+        try {
+            ftp.connect("190.65.63.135", 921)
+            ftp.login("usrServicios", "pruebas123")
+            ftp.enterLocalPassiveMode()
+            ftp.setFileType(FTP.BINARY_FILE_TYPE)
+
+            // Carpeta local donde “simulamos” assets escribibles
+            val assetsDir = File(context.filesDir, "assets")
+            if (!assetsDir.exists()) assetsDir.mkdirs()
+
+            filenames.forEach { name ->
+                val remotePath = "$remoteDir/$name"
+                val remoteFiles: Array<FTPFile> = ftp.listFiles(remotePath)
+                if (remoteFiles.isNotEmpty()) {
+                    val remoteFile = remoteFiles[0]
+                    val remoteTime = remoteFile.timestamp.timeInMillis
+
+                    val localFile = File(assetsDir, name)
+                    val needDownload = !localFile.exists() || localFile.lastModified() < remoteTime
+
+                    if (needDownload) {
+                        FileLogger.d("FtpUploadWorker", "Descargando asset: $name (remoto más nuevo)")
+                        FileOutputStream(localFile, false).use { out ->
+                            if (ftp.retrieveFile(remotePath, out)) {
+                                localFile.setLastModified(remoteTime)
+                                FileLogger.d("FtpUploadWorker", "Reemplazado asset: $name")
+                            } else {
+                                 FileLogger.e("FtpUploadWorker", "Error al descargar asset: $name")
+                            }
+                        }
+                    }
+                } else {
+                     FileLogger.w("FtpUploadWorker", "No existe en FTP: $remotePath")
+                }
+            }
+        } catch (e: Exception) {
+             FileLogger.e("FtpUploadWorker", "FTP Sync Error: ${e.localizedMessage}")
+        } finally {
+            if (ftp.isConnected) {
+                try { ftp.logout() } catch (_: Exception) {}
+                try { ftp.disconnect() } catch (_: Exception) {}
+            }
+        }
+    }
 
     private fun uploadFileToFTP(file: File): Boolean {
         val ftpClient = FTPClient()
@@ -73,14 +153,14 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
             val pass = "pruebas123"
 
             ftpClient.connect(server, port)
-            Log.d("FtpUploadWorker", "Conectado al servidor FTP: $server:$port")
+             FileLogger.d("FtpUploadWorker", "Conectado al servidor FTP: $server:$port")
             ftpClient.login(user, pass)
             ftpClient.enterLocalPassiveMode()
             ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
 
             val inputStream = FileInputStream(file)
             val remoteFilePath = "/controlhoras/entrada/${file.name}"
-            Log.d("FtpUploadWorker", "Subiendo archivo: ${file.name} a $remoteFilePath")
+             FileLogger.d("FtpUploadWorker", "Subiendo archivo: ${file.name} a $remoteFilePath")
             val success = ftpClient.storeFile(remoteFilePath, inputStream)
             inputStream.close()
 
@@ -89,7 +169,7 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
 
             success
         } catch (e: Exception) {
-            Log.e("FtpUploadWorker", "Error al subir archivo ${file.name}: ${e.localizedMessage}", e)
+             FileLogger.e("FtpUploadWorker", "Error al subir archivo ${file.name}: ${e.localizedMessage}")
             false
         }
     }

@@ -2,7 +2,6 @@ package com.example.horas_extra_tecnipalma
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 
 import kotlinx.coroutines.launch
 
@@ -100,10 +99,15 @@ fun DrawerItem(text: String, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuScreen(context: Context) {
+    val selectedOption = rememberSaveable { mutableStateOf("") }
+    val selectedTime   = rememberSaveable { mutableStateOf("") }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val navController = rememberNavController()
     val stateChanges = remember{mutableStateListOf<StateChangeRecord>()}
+
+
 
     ModalNavigationDrawer(
         drawerContent = {
@@ -143,7 +147,18 @@ fun MenuScreen(context: Context) {
                 startDestination = "home",
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable("home") {  MenuContent(context, stateChanges) }
+                composable("home") {
+                    MenuContent(
+                        context = context,
+                        stateChanges = stateChanges,
+                        selectedOption = selectedOption.value,
+                        selectedTime   = selectedTime.value,
+                        onOptionChosen = { opción, hora ->
+                            selectedOption.value = opción
+                            selectedTime.value   = hora
+                        }
+                    )
+                }
                 composable("reporte") { ReporteScreen(stateChanges) }
                 composable("config") { ConfigScreen() }
             }
@@ -152,10 +167,16 @@ fun MenuScreen(context: Context) {
 }
 
 @Composable
-fun MenuContent(context: Context, stateChanges: MutableList<StateChangeRecord>) {
+fun MenuContent(
+    context: Context,
+    stateChanges: MutableList<StateChangeRecord>,
+    selectedOption: String,
+    selectedTime: String,
+    onOptionChosen: (String /*opción*/, String /*hora*/) -> Unit
+
+) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedOption by rememberSaveable { mutableStateOf("") }
-    var selectedTime by rememberSaveable { mutableStateOf("") }
+
 
     fun getCurrentTime(): String {
         val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -197,24 +218,26 @@ fun MenuContent(context: Context, stateChanges: MutableList<StateChangeRecord>) 
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno").forEach { state ->
-                        DropdownMenuItem(
-                            text = { Text(state) },
-                            onClick = {
-                                selectedOption = state
-                                selectedTime = getCurrentTime()
-                                val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                    listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno")
+                        .forEach { state ->
+                            DropdownMenuItem(
+                                text = { Text(text = state) },
+                                onClick = {
+                                    val horaActual = getCurrentTime()
+                                    val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
-                                stateChanges.add(StateChangeRecord(selectedOption, selectedTime, fechaHoy))
+                                    onOptionChosen(state, horaActual)
 
-                                saveStateChanges(context, selectedOption, selectedTime)
 
-                                Log.d("VALIDACION", "✅ Estado guardado en JSON: $selectedOption a las $selectedTime")
+                                    stateChanges.add(StateChangeRecord(state, horaActual, fechaHoy))
 
-                                expanded = false
-                            }
-                        )
-                    }
+                                    saveStateChanges(context, state, horaActual)
+                                    FileLogger.d("VALIDACION", "✅ Estado guardado en JSON: $state a las $horaActual")
+
+                                    expanded = false
+                                }
+                            )
+                        }
                 }
             }
 
@@ -227,7 +250,8 @@ fun MenuContent(context: Context, stateChanges: MutableList<StateChangeRecord>) 
                     text = "$selectedOption - $selectedTime",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = Color.Black,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
         }
@@ -257,13 +281,13 @@ fun saveStateChanges(context: Context, estado: String, hora: String) {
             try {
                 Gson().fromJson(existingJson, object : TypeToken<MutableMap<String, Any>>() {}.type) ?: mutableMapOf()
             } catch (e: Exception) {
-                Log.e("JSON", "❌ ERROR al parsear el JSON existente: ${e.message}")
+                FileLogger.e("JSON", "❌ ERROR al parsear el JSON existente: ${e.message}")
                 mutableMapOf()
             }
         } else {
             mutableMapOf(
                 "usuario" to mapOf(
-                    "Identificacion" to (loggedUserId ?: 0),
+                    "Identificacion" to (loggedUserId?.toString() ?: ""),
                     "Nombre" to (loggedUserName ?: "No disponible"),
                     "Ubicacion" to (loggedUserLocation ?: "No seleccionada"),
                     "NumeroOT" to (loggedUserNumeroOT ?: "")
@@ -290,15 +314,12 @@ fun saveStateChanges(context: Context, estado: String, hora: String) {
         FileWriter(file).use { it.write(json) }
 
         // 📌 🔥 Mostrar el JSON COMPLETO en el log
-        Log.d("JSON", "📂 JSON COMPLETO en archivo $fileName:\n$json")
+        FileLogger.d("JSON", "📂 JSON COMPLETO en archivo $fileName:\n$json")
 
     } catch (e: Exception) {
-        Log.e("JSON", "❌ ERROR al guardar el estado en JSON: ${e.message}")
+        FileLogger.e("JSON", "❌ ERROR al guardar el estado en JSON: ${e.message}")
     }
 }
-
-
-
 
 fun lastTurnHadExit(context: Context): Boolean {
     val latestFile = getLatestJsonFileName(context) ?: return false
@@ -318,7 +339,7 @@ fun lastTurnHadExit(context: Context): Boolean {
         estados.any { it.containsKey("Fuera de Turno") }
 
     } catch (e: Exception) {
-        Log.e("JSON", "❌ ERROR al verificar 'Fuera de Turno': ${e.message}")
+        FileLogger.e("JSON", "❌ ERROR al verificar 'Fuera de Turno': ${e.message}")
         false
     }
 }

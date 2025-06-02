@@ -1,7 +1,6 @@
 package com.example.horas_extra_tecnipalma
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 
-import android.util.Log
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -26,11 +25,11 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.gson.annotations.SerializedName
 
-import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
+import java.io.File
 
 var loggedUserId: Int? = null
 var loggedUserName: String? = null
@@ -40,6 +39,7 @@ var loggedUserNumeroOT: String? = null
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FileLogger.init(applicationContext)
         setContent {
             Horas_Extra_TecnipalmaTheme {
                 LoginScreen(this)
@@ -131,7 +131,7 @@ fun LoginScreen(context: Context) {
                                 loggedUserLocation = selectedLocation
                                 loggedUserNumeroOT = if (selectedLocation == "Montaje") numeroOT else ""
 
-                                Log.d("VALIDACION", "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT")
+                                FileLogger.d("VALIDACION", "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT")
 
                                 // 📌 Enviar datos a la siguiente pantalla
                                 val intent = Intent(context, HomeActivity::class.java)
@@ -197,23 +197,43 @@ data class User(
     @SerializedName("Nombre") val nombre: String,
 )
 
+fun readFilePriority(context: Context, fileName: String): ByteArray {
+
+    val local = File(context.filesDir, "assets/$fileName")
+    if (local.exists()) {
+        return try {
+            local.readBytes()
+        } catch (e: Exception) {
+            FileLogger.e("VALIDACION", "❌ ERROR leyendo local $fileName: ${e.message}")
+            ByteArray(0)
+        }
+    }
+
+    return try {
+        context.assets.open(fileName).use { it.readBytes() }
+    } catch (e: Exception) {
+        FileLogger.e("VALIDACION", "❌ ERROR leyendo APK asset $fileName: ${e.message}")
+        ByteArray(0)
+    }
+}
+
 fun validateUser(context: Context, username: String, password: String): User? {
     val claveFileName = "clave.key"
     val ivFileName = "iv.key"
     val jsonEncFileName = "Operarios_enc.json"
 
     try {
-        val claveBytes = readFileFromAssets(context, claveFileName)
-        val ivBytes = readFileFromAssets(context, ivFileName)
-        val encryptedData = readFileFromAssets(context, jsonEncFileName)
+        val claveBytes = readFilePriority(context, claveFileName)
+        val ivBytes = readFilePriority(context, ivFileName)
+        val encryptedData = readFilePriority(context, jsonEncFileName)
 
         val decryptedJson = decryptAES(encryptedData, claveBytes, ivBytes)
         if (decryptedJson.isEmpty()) {
-            Log.e("VALIDACION", "❌ ERROR: No se pudo desencriptar el JSON")
+            FileLogger.e("VALIDACION", "❌ ERROR: No se pudo desencriptar el JSON")
             return null
         }
 
-        Log.d("VALIDACION", "✅ JSON Desencriptado: $decryptedJson")
+        FileLogger.d("VALIDACION", "✅ JSON Desencriptado: $decryptedJson")
 
         val gson = Gson()
         val userType = object : TypeToken<List<User>>() {}.type
@@ -221,19 +241,17 @@ fun validateUser(context: Context, username: String, password: String): User? {
 
         val enteredUsername = username.toIntOrNull()
         if (enteredUsername == null) {
-            Log.e("VALIDACION", "❌ ERROR: Username no es un número válido")
+            FileLogger.e("VALIDACION", "❌ ERROR: Username no es un número válido")
             return null
         }
 
-        // 📌 Buscar usuario por Identificación
         return users.find { it.identificacion == enteredUsername && it.contrasena == password }
 
     } catch (e: Exception) {
-        Log.e("VALIDACION", "❌ ERROR GENERAL: ${e.message}")
+        FileLogger.e("VALIDACION", "❌ ERROR GENERAL: ${e.message}")
         return null
     }
 }
-
 
 fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
     return try {
@@ -246,20 +264,9 @@ fun decryptAES(data: ByteArray, key: ByteArray, iv: ByteArray): String {
 
         String(decryptedBytes, StandardCharsets.UTF_8)
     } catch (e: Exception) {
-        Log.e("VALIDACION", "❌ ERROR AL DESENCRIPTAR: ${e.message}")
+        FileLogger.e("VALIDACION", "❌ ERROR AL DESENCRIPTAR: ${e.message}")
         ""
     }
 }
 
-fun readFileFromAssets(context: Context, fileName: String): ByteArray {
-    return try {
-        val inputStream: InputStream = context.assets.open(fileName)
-        val bytes = inputStream.readBytes()
-        inputStream.close()
-        bytes
-    } catch (e: Exception) {
-        Log.e("VALIDACION", "❌ ERROR LEYENDO ARCHIVO: $fileName - ${e.message}")
-        ByteArray(0)
-    }
-}
 
