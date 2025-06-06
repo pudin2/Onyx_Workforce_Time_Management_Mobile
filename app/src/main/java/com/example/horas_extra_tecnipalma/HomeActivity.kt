@@ -1,6 +1,7 @@
 package com.example.horas_extra_tecnipalma
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 
 import kotlinx.coroutines.launch
@@ -42,18 +43,42 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// 📌 Data Class para el JSON
-data class StateChangeRecord(val estado: String, val hora: String, val fecha: String)
-//agregado
+data class StateChangeRecord(val estado: String, val hora: String, val fecha: String, val latitud: Double?, val longitud: Double?)
+
+fun necesitaLogin(context: Context): Boolean {
+    val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
+    val ultimoEstado = prefs.getString("ultimoEstado", "")
+    return ultimoEstado == "Fuera de Turno"
+}
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ─── CHEQUEO ANTES DE PONER setContent ───
+        if (necesitaLogin(this)) {
+            // Si el último estado fue "Fuera de Turno", lo mandamos a LoginActivity
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()  // cerramos HomeActivity para que no quede en el backstack
+            return
+        }
+        // ────────────────────────────────────────────
+
         setContent {
             Horas_Extra_TecnipalmaTheme {
                 MenuScreen(this)
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // ─── REPETIMOS CHEQUEO EN onResume POR SI REGRESA ALFOCUNDOR (HOT-SWITCH) ───
+        if (necesitaLogin(this)) {
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 }
@@ -70,8 +95,8 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.Center, // ✅ Centra verticalmente en la pantalla
-            horizontalAlignment = Alignment.CenterHorizontally // ✅ Centra horizontalmente el contenido
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
 
         ) {
             DrawerItem("Página Principal", onClick = { onItemSelected("home") })
@@ -95,7 +120,6 @@ fun DrawerItem(text: String, onClick: () -> Unit) {
     )
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuScreen(context: Context) {
@@ -106,8 +130,6 @@ fun MenuScreen(context: Context) {
     val scope = rememberCoroutineScope()
     val navController = rememberNavController()
     val stateChanges = remember{mutableStateListOf<StateChangeRecord>()}
-
-
 
     ModalNavigationDrawer(
         drawerContent = {
@@ -172,11 +194,10 @@ fun MenuContent(
     stateChanges: MutableList<StateChangeRecord>,
     selectedOption: String,
     selectedTime: String,
-    onOptionChosen: (String /*opción*/, String /*hora*/) -> Unit
-
+    onOptionChosen: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-
+    val scope = rememberCoroutineScope()
 
     fun getCurrentTime(): String {
         val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -192,13 +213,12 @@ fun MenuContent(
     ) {
         Image(
             painter = painterResource(id = R.drawable.logor1),
-            contentDescription = "Login Image",
+            contentDescription = "Logo",
             modifier = Modifier
                 .size(250.dp)
                 .padding(bottom = 32.dp)
         )
 
-        // 📌 Se envuelve el DropdownMenu en un Column separado
         Column {
             Box {
                 Button(
@@ -224,27 +244,58 @@ fun MenuContent(
                                 text = { Text(text = state) },
                                 onClick = {
                                     val horaActual = getCurrentTime()
-                                    val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                                    val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                                        .format(Date())
 
-                                    onOptionChosen(state, horaActual)
+                                    scope.launch {
+                                        // 1) Intentamos obtener ubicación
+                                        var lat: Double? = null
+                                        var lon: Double? = null
+                                        try {
+                                            val ubicacion = context.getLastKnownLocation()
+                                            if (ubicacion != null) {
+                                                lat = ubicacion.latitude
+                                                lon = ubicacion.longitude
+                                            }
+                                        } catch (e: Exception) {
+                                            FileLogger.e("LOCATION", "❌ Error al obtener ubicación: ${e.message}")
+                                        }
 
+                                        // 2) Actualizamos el estado en la UI y en la lista local
+                                        onOptionChosen(state, horaActual)
+                                        stateChanges.add(
+                                            StateChangeRecord(
+                                                estado = state,
+                                                hora = horaActual,
+                                                fecha = fechaHoy,
+                                                latitud = lat,
+                                                longitud = lon
+                                            )
+                                        )
 
-                                    stateChanges.add(StateChangeRecord(state, horaActual, fechaHoy))
+                                        // 3) Guardamos en JSON, pasando lat y lon
+                                        saveStateChanges(
+                                            context = context,
+                                            estado = state,
+                                            hora = horaActual,
+                                            latitud = lat,
+                                            longitud = lon
+                                        )
+                                        FileLogger.d(
+                                            "VALIDACION",
+                                            "✅ Estado guardado en JSON: $state a las $horaActual (lat=$lat, lon=$lon)"
+                                        )
 
-                                    saveStateChanges(context, state, horaActual)
-                                    FileLogger.d("VALIDACION", "✅ Estado guardado en JSON: $state a las $horaActual")
-
-                                    expanded = false
+                                        expanded = false
+                                    }
                                 }
                             )
                         }
                 }
             }
 
-            // 📌 Aquí agregamos un Spacer mayor para asegurarnos de que el texto baje
             Spacer(modifier = Modifier.height(80.dp))
 
-            // 📌 Ahora el texto no se solapa con el DropdownMenu
             if (selectedOption.isNotEmpty()) {
                 Text(
                     text = "$selectedOption - $selectedTime",
@@ -258,15 +309,17 @@ fun MenuContent(
     }
 }
 
-// 📌 Función para guardar un nuevo estado en el JSON sin modificar los datos del usuario
-fun saveStateChanges(context: Context, estado: String, hora: String) {
+fun saveStateChanges(
+    context: Context,
+    estado: String,
+    hora: String,
+    latitud: Double?,
+    longitud: Double?
+) {
     try {
         val fechaHoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-        // 📌 Verificar si el último archivo contiene "Fuera de Turno"
         val lastFileHadExit = lastTurnHadExit(context)
 
-        // 📌 Si el estado es "En Turno" Y el último turno ya finalizó, iniciar un nuevo archivo
         val fileName = if ((estado == "En Turno" && lastFileHadExit) || lastFileHadExit) {
             "estado_${fechaHoy}_${System.currentTimeMillis()}.json"
         } else {
@@ -275,11 +328,11 @@ fun saveStateChanges(context: Context, estado: String, hora: String) {
 
         val file = File(context.filesDir, fileName)
 
-        // 📌 Cargar datos existentes si el archivo ya existe, sino crear nueva estructura
         val jsonData: MutableMap<String, Any> = if (file.exists()) {
             val existingJson = FileReader(file).use { it.readText() }
             try {
-                Gson().fromJson(existingJson, object : TypeToken<MutableMap<String, Any>>() {}.type) ?: mutableMapOf()
+                Gson().fromJson(existingJson, object : TypeToken<MutableMap<String, Any>>() {}.type)
+                    ?: mutableMapOf()
             } catch (e: Exception) {
                 FileLogger.e("JSON", "❌ ERROR al parsear el JSON existente: ${e.message}")
                 mutableMapOf()
@@ -292,29 +345,38 @@ fun saveStateChanges(context: Context, estado: String, hora: String) {
                     "Ubicacion" to (loggedUserLocation ?: "No seleccionada"),
                     "NumeroOT" to (loggedUserNumeroOT ?: "")
                 ),
-                fechaHoy to mutableListOf<Map<String, String>>() // 📌 Lista de estados bajo la fecha
+                fechaHoy to mutableListOf<Map<String, Any>>()
             )
         }
 
-        // 📌 Obtener lista de estados en la fecha actual y agregar el nuevo estado
-        val estadosDelDia = (jsonData[fechaHoy] as? MutableList<Map<String, String>>)?.toMutableList() ?: mutableListOf()
-        estadosDelDia.add(mapOf(estado to hora))
+        val estadosDelDia = (jsonData[fechaHoy] as? MutableList<Map<String, Any>>)?.toMutableList()
+            ?: mutableListOf()
 
-        // 📌 Si el estado es "Fuera de Turno", agregar la fecha exacta de salida
+        val registro: MutableMap<String, Any> = mutableMapOf(
+            "estado" to estado,
+            "hora" to hora,
+            "latitud" to (latitud ?: ""),    // Podés dejarlo como "" o null si no se obtuvo
+            "longitud" to (longitud ?: "")
+        )
+
+        estadosDelDia.add(registro)
+
         if (estado == "Fuera de Turno") {
             val fechaSalida = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             jsonData["FechaSalida"] = fechaSalida
         }
 
-        // 📌 Guardar de nuevo los estados en la fecha actual
         jsonData[fechaHoy] = estadosDelDia
-
-        // 📌 Guardar en JSON
         val json = Gson().toJson(jsonData)
         FileWriter(file).use { it.write(json) }
 
-        // 📌 🔥 Mostrar el JSON COMPLETO en el log
         FileLogger.d("JSON", "📂 JSON COMPLETO en archivo $fileName:\n$json")
+
+        // ─── GUARDAMOS EN SharedPreferences EL ULTIMO ESTADO ───
+        val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("ultimoEstado", estado)
+            .apply()
 
     } catch (e: Exception) {
         FileLogger.e("JSON", "❌ ERROR al guardar el estado en JSON: ${e.message}")
@@ -331,11 +393,9 @@ fun lastTurnHadExit(context: Context): Boolean {
         val json = FileReader(file).use { it.readText() }
         val jsonData: MutableMap<String, Any> = Gson().fromJson(json, object : TypeToken<MutableMap<String, Any>>() {}.type) ?: mutableMapOf()
 
-        // 📌 Obtener la fecha más reciente
         val lastDate = jsonData.keys.filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }.maxOrNull() ?: return false
         val estados = jsonData[lastDate] as? List<Map<String, String>> ?: return false
 
-        // 📌 Verificar si el último estado fue "Fuera de Turno"
         estados.any { it.containsKey("Fuera de Turno") }
 
     } catch (e: Exception) {

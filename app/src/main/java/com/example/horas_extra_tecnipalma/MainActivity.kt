@@ -54,7 +54,7 @@ fun LoginScreen(context: Context) {
     var password by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf("") }
     var showTextField by remember { mutableStateOf(false) }
-    var numeroOT by remember { mutableStateOf("") } 
+    var numeroOT by remember { mutableStateOf("") }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -107,7 +107,7 @@ fun LoginScreen(context: Context) {
                 if (showTextField) {
                     TextField(
                         value = numeroOT,
-                        onValueChange = { numeroOT = it }, // 📌 Guardar el valor en numeroOT
+                        onValueChange = { numeroOT = it },
                         label = { Text("Número de OT") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier
@@ -125,16 +125,26 @@ fun LoginScreen(context: Context) {
                         } else {
                             val user = validateUser(context, username, password)
                             if (user != null) {
-                                // 📌 Guardamos los datos globalmente
+                                // 1) Guardamos los datos globalmente
                                 loggedUserId = user.identificacion
                                 loggedUserName = user.nombre
                                 loggedUserLocation = selectedLocation
                                 loggedUserNumeroOT = if (selectedLocation == "Montaje") numeroOT else ""
 
-                                FileLogger.d("VALIDACION", "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT")
+                                FileLogger.d(
+                                    "VALIDACION",
+                                    "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT"
+                                )
 
-                                // 📌 Enviar datos a la siguiente pantalla
+                                // ─── 2) Limpiamos el flag "ultimoEstado" en SharedPreferences ───  <<< CAMBIO
+                                val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
+                                prefs.edit()
+                                    .putString("ultimoEstado", "")
+                                    .apply()
+
+                                // ─── 3) Navegamos a HomeActivity ───
                                 val intent = Intent(context, HomeActivity::class.java)
+                                // Puedes pasar extras si los necesitas, aunque HomeActivity lee globals
                                 intent.putExtra("Identificacion", loggedUserId)
                                 intent.putExtra("Nombre", loggedUserName)
                                 intent.putExtra("Ubicacion", loggedUserLocation)
