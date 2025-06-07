@@ -1,7 +1,7 @@
 package com.example.horas_extra_tecnipalma
 
 import android.content.Context
-import android.content.Intent
+import android.content.Intent//
 import android.os.Bundle
 
 import kotlinx.coroutines.launch
@@ -49,21 +49,19 @@ fun necesitaLogin(context: Context): Boolean {
     val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
     val ultimoEstado = prefs.getString("ultimoEstado", "")
     return ultimoEstado == "Fuera de Turno"
-}
+}//nueva
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ─── CHEQUEO ANTES DE PONER setContent ───
         if (necesitaLogin(this)) {
-            // Si el último estado fue "Fuera de Turno", lo mandamos a LoginActivity
+
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
-            finish()  // cerramos HomeActivity para que no quede en el backstack
+            finish()
             return
-        }
-        // ────────────────────────────────────────────
+        }//nuevo
 
         setContent {
             Horas_Extra_TecnipalmaTheme {
@@ -74,13 +72,13 @@ class HomeActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // ─── REPETIMOS CHEQUEO EN onResume POR SI REGRESA ALFOCUNDOR (HOT-SWITCH) ───
+
         if (necesitaLogin(this)) {
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
             finish()
         }
-    }
+    }//nuevo
 }
 
 @Composable
@@ -197,7 +195,7 @@ fun MenuContent(
     onOptionChosen: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()//nuevo
 
     fun getCurrentTime(): String {
         val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -248,7 +246,6 @@ fun MenuContent(
                                         .format(Date())
 
                                     scope.launch {
-                                        // 1) Intentamos obtener ubicación
                                         var lat: Double? = null
                                         var lon: Double? = null
                                         try {
@@ -261,7 +258,6 @@ fun MenuContent(
                                             FileLogger.e("LOCATION", "❌ Error al obtener ubicación: ${e.message}")
                                         }
 
-                                        // 2) Actualizamos el estado en la UI y en la lista local
                                         onOptionChosen(state, horaActual)
                                         stateChanges.add(
                                             StateChangeRecord(
@@ -273,7 +269,6 @@ fun MenuContent(
                                             )
                                         )
 
-                                        // 3) Guardamos en JSON, pasando lat y lon
                                         saveStateChanges(
                                             context = context,
                                             estado = state,
@@ -355,11 +350,11 @@ fun saveStateChanges(
         val registro: MutableMap<String, Any> = mutableMapOf(
             "estado" to estado,
             "hora" to hora,
-            "latitud" to (latitud ?: ""),    // Podés dejarlo como "" o null si no se obtuvo
+            "latitud" to (latitud ?: ""),
             "longitud" to (longitud ?: "")
-        )
+        )//nuevo
 
-        estadosDelDia.add(registro)
+        estadosDelDia.add(registro)//nuevo
 
         if (estado == "Fuera de Turno") {
             val fechaSalida = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
@@ -376,7 +371,7 @@ fun saveStateChanges(
         val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("ultimoEstado", estado)
-            .apply()
+            .apply()//nuevo
 
     } catch (e: Exception) {
         FileLogger.e("JSON", "❌ ERROR al guardar el estado en JSON: ${e.message}")
@@ -396,7 +391,9 @@ fun lastTurnHadExit(context: Context): Boolean {
         val lastDate = jsonData.keys.filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }.maxOrNull() ?: return false
         val estados = jsonData[lastDate] as? List<Map<String, String>> ?: return false
 
-        estados.any { it.containsKey("Fuera de Turno") }
+        estados.any { registro ->
+            (registro["estado"] as? String) == "Fuera de Turno"
+        }
 
     } catch (e: Exception) {
         FileLogger.e("JSON", "❌ ERROR al verificar 'Fuera de Turno': ${e.message}")
