@@ -30,6 +30,9 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Dp
+
 
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 
@@ -42,6 +45,7 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
 
 data class StateChangeRecord(val estado: String, val hora: String, val fecha: String, val latitud: Double?, val longitud: Double?)
 
@@ -80,43 +84,61 @@ class HomeActivity : ComponentActivity() {
         }
     }//nuevo
 }
-
 @Composable
 fun DrawerContent(onItemSelected: (String) -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1BA1BF)),
-        color = Color.Transparent
-    ) {
-        Column(
+    BoxWithConstraints {
+        val fontSize = when {
+            maxWidth < 360.dp -> 16.sp  // celulares pequeños
+            maxWidth < 600.dp -> 18.sp  // celulares normales
+            else -> 24.sp               // tabletas
+        }
+
+        val padding = when {
+            maxWidth < 360.dp -> 8.dp
+            maxWidth < 600.dp -> 16.dp
+            else -> 32.dp
+        }
+
+        val verticalArrangement = when {
+            maxWidth < 600.dp -> Arrangement.Center
+            else -> Arrangement.Top
+        }
+
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-
+                .background(Color(0xFF1BA1BF)),
+            color = Color.Transparent
         ) {
-            DrawerItem("Página Principal", onClick = { onItemSelected("home") })
-            DrawerItem("Reporte", onClick = { onItemSelected("reporte") })
-            DrawerItem("Configuración", onClick = { onItemSelected("config") })
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                verticalArrangement = verticalArrangement,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                DrawerItem("Página Principal", onClick = { onItemSelected("home") }, fontSize, padding)
+                DrawerItem("Reporte", onClick = { onItemSelected("reporte") }, fontSize, padding)
+                DrawerItem("Configuración", onClick = { onItemSelected("config") }, fontSize, padding)
+            }
         }
     }
 }
 
 @Composable
-fun DrawerItem(text: String, onClick: () -> Unit) {
+fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: Dp) {
     Text(
         text = text,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(12.dp),
-        fontSize = 18.sp,
+            .padding(all = padding),
+        fontSize = fontSize,
         fontWeight = FontWeight.Bold,
         color = Color.White
     )
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,11 +153,13 @@ fun MenuScreen(context: Context) {
 
     ModalNavigationDrawer(
         drawerContent = {
-            DrawerContent { route ->
-                scope.launch {
-                    drawerState.close()
+            if (drawerState.isOpen) {
+                DrawerContent { route ->
+                    scope.launch {
+                        drawerState.close()
+                        navController.navigate(route)
+                    }
                 }
-                navController.navigate(route)
             }
         },
         drawerState = drawerState
@@ -318,7 +342,7 @@ fun saveStateChanges(
         val fileName = if ((estado == "En Turno" && lastFileHadExit) || lastFileHadExit) {
             "estado_${fechaHoy}_${System.currentTimeMillis()}.json"
         } else {
-            getLatestJsonFileName(context) ?: "estado_${fechaHoy}.json"
+            getLatestJsonFileName(context) ?: "estado_${fechaHoy}_${System.currentTimeMillis()}.json"
         }
 
         val file = File(context.filesDir, fileName)
@@ -337,7 +361,7 @@ fun saveStateChanges(
                 "usuario" to mapOf(
                     "Identificacion" to (loggedUserId?.toString() ?: ""),
                     "Nombre" to (loggedUserName ?: "No disponible"),
-                    "Ubicacion" to (loggedUserLocation ?: "No seleccionada"),
+                    //"Ubicacion" to (loggedUserLocation ?: "No seleccionada"),
                     "NumeroOT" to (loggedUserNumeroOT ?: "")
                 ),
                 fechaHoy to mutableListOf<Map<String, Any>>()

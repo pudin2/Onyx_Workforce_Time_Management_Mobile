@@ -1,10 +1,14 @@
 package com.example.horas_extra_tecnipalma
+
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import android.content.pm.PackageManager
+import android.os.Build
+import android.Manifest
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +24,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -31,15 +37,50 @@ import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
 import java.io.File
 
+// Variables globales
 var loggedUserId: Int? = null
 var loggedUserName: String? = null
-var loggedUserLocation: String? = null
+var loggedUserLocation: String? = null    // Queda en blanco
 var loggedUserNumeroOT: String? = null
 
 class MainActivity : ComponentActivity() {
+
+    private val requestAllPermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            val notifGranted = results[Manifest.permission.POST_NOTIFICATIONS] == true
+            val fineGranted  = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+            val coarseGranted= results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+            if (!notifGranted) {
+                Toast.makeText(this, "Sin permiso de notificaciones, no recibirá alertas FTP.", Toast.LENGTH_SHORT).show()
+            }
+            if (!fineGranted && !coarseGranted) {
+                Toast.makeText(this, "Sin permiso de ubicación, no podrá obtener coordenadas.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FileLogger.init(applicationContext)
+
+        // Solicitar permisos si faltan
+        val toRequest = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+            toRequest += Manifest.permission.POST_NOTIFICATIONS
+        }
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (fine != PackageManager.PERMISSION_GRANTED &&
+            coarse != PackageManager.PERMISSION_GRANTED) {
+            toRequest += Manifest.permission.ACCESS_FINE_LOCATION
+            toRequest += Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+        if (toRequest.isNotEmpty()) {
+            requestAllPermissions.launch(toRequest.toTypedArray())
+        }
+
         setContent {
             Horas_Extra_TecnipalmaTheme {
                 LoginScreen(this)
@@ -52,8 +93,6 @@ class MainActivity : ComponentActivity() {
 fun LoginScreen(context: Context) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var selectedLocation by remember { mutableStateOf("") }
-    var showTextField by remember { mutableStateOf(false) }
     var numeroOT by remember { mutableStateOf("") }
 
     Scaffold(
@@ -96,59 +135,48 @@ fun LoginScreen(context: Context) {
                         .padding(bottom = 16.dp)
                 )
 
-                DropdownMenuExample(
-                    selectedLocation = selectedLocation,
-                    onLocationSelected = {
-                        selectedLocation = it
-                        showTextField = (it == "Montaje")
-                    }
+                // Campo OT siempre visible
+                TextField(
+                    value = numeroOT,
+                    onValueChange = { numeroOT = it },
+                    label = { Text("Número de OT") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp)
                 )
-
-                if (showTextField) {
-                    TextField(
-                        value = numeroOT,
-                        onValueChange = { numeroOT = it },
-                        label = { Text("Número de OT") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
-                    )
-                }
 
                 Button(
                     onClick = {
-                        if (selectedLocation.isEmpty()) {
-                            Toast.makeText(context, "Debe seleccionar una ubicación", Toast.LENGTH_SHORT).show()
-                        } else if (selectedLocation == "Montaje" && numeroOT.isEmpty()) {
+                        // Ahora sólo validamos OT
+                        if (numeroOT.isEmpty()) {
                             Toast.makeText(context, "Debe ingresar un Número de OT", Toast.LENGTH_SHORT).show()
                         } else {
                             val user = validateUser(context, username, password)
                             if (user != null) {
-                                // 1) Guardamos los datos globalmente
+                                // Guardamos globals
                                 loggedUserId = user.identificacion
                                 loggedUserName = user.nombre
-                                loggedUserLocation = selectedLocation
-                                loggedUserNumeroOT = if (selectedLocation == "Montaje") numeroOT else ""
+                                loggedUserLocation = ""                 // Sin ubicación
+                                loggedUserNumeroOT = numeroOT
 
                                 FileLogger.d(
                                     "VALIDACION",
-                                    "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Ubicación=$loggedUserLocation, OT=$loggedUserNumeroOT"
+                                    "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, OT=$loggedUserNumeroOT"
                                 )
 
-                                // ─── 2) Limpiamos el flag "ultimoEstado" en SharedPreferences ───  <<< CAMBIO
+                                // Limpiar último estado
                                 val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
                                 prefs.edit()
                                     .putString("ultimoEstado", "")
                                     .apply()
 
-                                // ─── 3) Navegamos a HomeActivity ───
-                                val intent = Intent(context, HomeActivity::class.java)
-                                // Puedes pasar extras si los necesitas, aunque HomeActivity lee globals
-                                intent.putExtra("Identificacion", loggedUserId)
-                                intent.putExtra("Nombre", loggedUserName)
-                                intent.putExtra("Ubicacion", loggedUserLocation)
-                                intent.putExtra("NumeroOT", loggedUserNumeroOT)
+                                // Navegar a Home
+                                val intent = Intent(context, HomeActivity::class.java).apply {
+                                    putExtra("Identificacion", loggedUserId)
+                                    putExtra("Nombre", loggedUserName)
+                                    putExtra("NumeroOT", loggedUserNumeroOT)
+                                }
                                 context.startActivity(intent)
                             } else {
                                 Toast.makeText(context, "Identificación o contraseña inválida", Toast.LENGTH_SHORT).show()
