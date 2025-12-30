@@ -19,7 +19,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -40,6 +39,7 @@ import java.io.File
 // Variables globales
 var loggedUserId: Int? = null
 var loggedUserName: String? = null
+var loggedUserCargo: String? = null
 var loggedUserLocation: String? = null    // Queda en blanco
 var loggedUserNumeroOT: String? = null
 
@@ -159,10 +159,11 @@ fun LoginScreen(context: Context) {
                                 loggedUserName = user.nombre
                                 loggedUserLocation = ""                 // Sin ubicación
                                 loggedUserNumeroOT = numeroOT
+                                loggedUserCargo = user.cargo ?: ""
 
                                 FileLogger.d(
                                     "VALIDACION",
-                                    "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, OT=$loggedUserNumeroOT"
+                                    "✅ Usuario Logueado: ID=$loggedUserId, Nombre=$loggedUserName, Cargo=$loggedUserCargo, OT=$loggedUserNumeroOT"
                                 )
 
                                 // Limpiar último estado
@@ -192,47 +193,11 @@ fun LoginScreen(context: Context) {
     )
 }
 
-@Composable
-fun DropdownMenuExample(selectedLocation: String, onLocationSelected: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Button(
-        onClick = { expanded = true },
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF1BA1BF),
-            contentColor = Color.White
-        )
-    ) {
-        Text(text = "Ubicación: $selectedLocation")
-    }
-
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = { expanded = false },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        DropdownMenuItem(
-            text = { Text("Planta") },
-            onClick = {
-                onLocationSelected("Planta")
-                expanded = false
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("Montaje") },
-            onClick = {
-                onLocationSelected("Montaje")
-                expanded = false
-            }
-        )
-    }
-}
-
 data class User(
     @SerializedName("Identificacion") val identificacion: Int,
     @SerializedName("Contraseña") val contrasena: String,
     @SerializedName("Nombre") val nombre: String,
+    @SerializedName("Cargo") val cargo: String? = null
 )
 
 fun readFilePriority(context: Context, fileName: String): ByteArray {

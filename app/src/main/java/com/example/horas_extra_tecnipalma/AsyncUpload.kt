@@ -14,6 +14,10 @@ import androidx.core.app.NotificationManagerCompat
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 
+import org.json.JSONObject
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -95,23 +99,100 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
     }
 
     private fun getAllJsonFiles(context: Context): List<File> {
-        // Sólo ficheros .json pendientes
         val candidates = context.filesDir.listFiles { _, name ->
-            name.endsWith(".json", ignoreCase = true)
-                    && !name.contains("_uploaded", ignoreCase = true)
+            name.endsWith(".json", ignoreCase = true) &&
+                    !name.contains("_uploaded", ignoreCase = true)
         } ?: return emptyList()
 
-        // Filtra sólo los que tengan "FechaSalida" en su JSON
         return candidates.filter { file ->
             try {
-                val text = file.readText()
-                // Busca literalmente la propiedad FechaSalida
-                text.contains("\"FechaSalida\"")
+                val root = JSONObject(file.readText())
+
+                // 1) Verificar que tiene FechaSalida (y que no esté vacía)
+                val fechaSalida = root.optString("FechaSalida", "").trim()
+                if (fechaSalida.isBlank()) return@filter false
+
+                // 2) ✅ Justo después: si lat/lon vienen vacíos, completarlos con ubicación
+                val modified = fillMissingLatLonFromLocation(context, root)
+                if (modified) {
+                    file.writeText(root.toString())
+                }
+
+                true
             } catch (_: Exception) {
                 false
             }
         }
     }
+
+    private fun fillMissingLatLonFromLocation(context: Context, root: JSONObject): Boolean {
+        // Primero: detectar si hay algún registro que necesite lat/lon
+        var needsLocation = false
+        val it1 = root.keys()
+
+        while (it1.hasNext()) {
+            val key = it1.next()
+            if (key == "usuario" || key == "FechaSalida") continue
+
+            val arr = root.optJSONArray(key) ?: continue
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                if (isEmptyField(obj, "latitud") || isEmptyField(obj, "longitud")) {
+                    needsLocation = true
+                    break
+                }
+            }
+            if (needsLocation) break
+        }
+
+        if (!needsLocation) return false
+
+        // Obtener ubicación (con timeout para no bloquear el Worker)
+        val location = runBlocking {
+            withTimeoutOrNull(2500L) {
+                context.getLastKnownLocation()
+            }
+        } ?: run {
+            FileLogger.w("FtpUploadWorker", "No hay ubicación disponible para completar lat/lon")
+            return false
+        }
+
+        // Como lo haces originalmente:
+        val lat = location.latitude
+        val lon = location.longitude
+
+        // Completar campos vacíos
+        var modified = false
+        val it2 = root.keys()
+
+        while (it2.hasNext()) {
+            val key = it2.next()
+            if (key == "usuario" || key == "FechaSalida") continue
+
+            val arr = root.optJSONArray(key) ?: continue
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+
+                if (isEmptyField(obj, "latitud")) {
+                    obj.put("latitud", lat)
+                    modified = true
+                }
+                if (isEmptyField(obj, "longitud")) {
+                    obj.put("longitud", lon)
+                    modified = true
+                }
+            }
+        }
+
+        return modified
+    }
+
+    private fun isEmptyField(obj: org.json.JSONObject, key: String): Boolean {
+        if (!obj.has(key) || obj.isNull(key)) return true
+        val v = obj.get(key)
+        return (v is String && v.trim().isEmpty())
+    }
+
 
     private fun markAsUploaded(file: File): Boolean {
         val renamed = File(file.parentFile, "${file.nameWithoutExtension}_uploaded.json")

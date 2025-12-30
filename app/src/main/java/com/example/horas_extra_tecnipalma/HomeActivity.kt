@@ -32,7 +32,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.Dp
-
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
 
@@ -46,8 +52,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
-data class StateChangeRecord(val estado: String, val hora: String, val fecha: String, val latitud: Double?, val longitud: Double?)
+data class StateChangeRecord(
+    val estado: String,
+    val hora: String,
+    val fecha: String,
+    val latitud: Double?,
+    val longitud: Double?,
+    val operarios: List<String> = emptyList()
+)
 
 fun necesitaLogin(context: Context): Boolean {
     val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
@@ -219,40 +231,118 @@ fun MenuContent(
     onOptionChosen: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()//nuevo
+
+    val cargosQueRequierenOperarios = remember {
+        setOf(
+            "SUPERVISOR DE MONTAJE", "SUPERVISOR DE MECANIZADO"
+            // agrega aquí otros cargos que deban gestionar operarios
+        ).map { normalizaNombre(it) }.toSet()
+    }
+
+    val cargoUsuario = normalizaNombre(loggedUserCargo ?: "")
+    val requiereOperarios = cargoUsuario in cargosQueRequierenOperarios
+
+    var pendingEstado by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingHora by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingLat by rememberSaveable { mutableStateOf<Double?>(null) }
+    var pendingLon by rememberSaveable { mutableStateOf<Double?>(null) }
+
+    val operariosPendientes = remember { mutableStateListOf<String>() }
+    var errorOperarios by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     fun getCurrentTime(): String {
         val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         return dateFormat.format(Date())
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.logor1),
-            contentDescription = "Logo",
-            modifier = Modifier
-                .size(250.dp)
-                .padding(bottom = 32.dp)
-        )
+    // ✅ Botón fijo abajo
+    Scaffold(
+        bottomBar = {
+            if (requiereOperarios && pendingEstado != null && pendingHora != null) {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
 
-        Column {
+                    if (errorOperarios != null) {
+                        Text(text = errorOperarios!!, color = Color.Red, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            if (operariosPendientes.isEmpty()) {
+                                errorOperarios = "Debes agregar al menos un operario."
+                                return@Button
+                            }
+
+                            val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                            val estado = pendingEstado!!
+                            val hora = pendingHora!!
+
+                            stateChanges.add(
+                                StateChangeRecord(
+                                    estado = estado,
+                                    hora = hora,
+                                    fecha = fechaHoy,
+                                    latitud = pendingLat,
+                                    longitud = pendingLon,
+                                    operarios = operariosPendientes.toList()
+                                )
+                            )
+
+                            saveStateChanges(
+                                context = context,
+                                estado = estado,
+                                hora = hora,
+                                latitud = pendingLat,
+                                longitud = pendingLon,
+                                operarios = operariosPendientes.toList()
+                            )
+
+                            pendingEstado = null
+                            pendingHora = null
+                            pendingLat = null
+                            pendingLon = null
+                            operariosPendientes.clear()
+                            errorOperarios = null
+                        }
+                    ) {
+                        Text("Guardar estado")
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+
+        // ✅ El contenido arriba sí puede crecer y hacer scroll, sin tapar el botón
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Image(
+                painter = painterResource(id = R.drawable.logor1),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(250.dp)
+                    .padding(bottom = 32.dp)
+            )
+
+            // ---- Tu UI actual (dropdown, texto, etc.)
             Box {
                 Button(
                     onClick = { expanded = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (selectedOption.isNotEmpty()) {
-                            "Estado: $selectedOption "
-                        } else {
-                            "Selecciona el Estado"
-                        }
+                        text = if (selectedOption.isNotEmpty()) "Estado: $selectedOption " else "Selecciona el Estado"
                     )
                 }
 
@@ -266,9 +356,6 @@ fun MenuContent(
                                 text = { Text(text = state) },
                                 onClick = {
                                     val horaActual = getCurrentTime()
-                                    val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                                        .format(Date())
-
                                     scope.launch {
                                         var lat: Double? = null
                                         var lon: Double? = null
@@ -278,32 +365,23 @@ fun MenuContent(
                                                 lat = ubicacion.latitude
                                                 lon = ubicacion.longitude
                                             }
-                                        } catch (e: Exception) {
-                                            FileLogger.e("LOCATION", "❌ Error al obtener ubicación: ${e.message}")
-                                        }
+                                        } catch (_: Exception) {}
+
+                                        pendingEstado = state
+                                        pendingHora = horaActual
+                                        pendingLat = lat
+                                        pendingLon = lon
 
                                         onOptionChosen(state, horaActual)
-                                        stateChanges.add(
-                                            StateChangeRecord(
-                                                estado = state,
-                                                hora = horaActual,
-                                                fecha = fechaHoy,
-                                                latitud = lat,
-                                                longitud = lon
-                                            )
-                                        )
 
-                                        saveStateChanges(
-                                            context = context,
-                                            estado = state,
-                                            hora = horaActual,
-                                            latitud = lat,
-                                            longitud = lon
-                                        )
-                                        FileLogger.d(
-                                            "VALIDACION",
-                                            "✅ Estado guardado en JSON: $state a las $horaActual (lat=$lat, lon=$lon)"
-                                        )
+                                        operariosPendientes.clear()
+
+// ✅ Si es un usuario con permiso, precarga la lista anterior
+                                        if (requiereOperarios) {
+                                            operariosPendientes.addAll(getUltimosOperariosDesdeUltimoJson(context))
+                                        }
+
+                                        errorOperarios = null
 
                                         expanded = false
                                     }
@@ -313,17 +391,115 @@ fun MenuContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             if (selectedOption.isNotEmpty()) {
                 Text(
                     text = "$selectedOption - $selectedTime",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            if (requiereOperarios && pendingEstado != null && pendingHora != null) {
+                OperariosSection(
+                    operarios = operariosPendientes,
+                    enabled = true
                 )
             }
+
+            // ✅ Este espacio evita que el último contenido quede debajo del bottomBar
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+
+@Composable
+fun OperariosSection(
+    operarios: MutableList<String>,
+    enabled: Boolean,
+) {
+    var nuevoOperario by rememberSaveable { mutableStateOf("") }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Operarios",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = nuevoOperario,
+                onValueChange = { nuevoOperario = it.filter { ch -> ch.isDigit() } }, // opcional: solo números
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                label = { Text("Cedula del Operario") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                )
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = {
+                    val limpio = nuevoOperario.trim()
+                    if (limpio.isNotEmpty()) {
+                        operarios.add(limpio)
+                        nuevoOperario = ""
+                    }
+                },
+                enabled = enabled
+            ) {
+                Text("Agregar")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (operarios.isEmpty()) {
+            Text(
+                text = "Aún no has agregado operarios.",
+                color = Color.Gray,
+                fontSize = 13.sp
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp) // ✅ la lista crece hasta 220dp y luego hace scroll
+            ) {
+                items(operarios.size) { index ->
+                    val nombre = operarios[index]
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "• $nombre",
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { operarios.removeAt(index) },
+                            enabled = enabled
+                        ) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar operario")
+                        }
+                    }
+                }
+            }
+
         }
     }
 }
@@ -333,7 +509,8 @@ fun saveStateChanges(
     estado: String,
     hora: String,
     latitud: Double?,
-    longitud: Double?
+    longitud: Double?,
+    operarios: List<String>
 ) {
     try {
         val fechaHoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -375,8 +552,9 @@ fun saveStateChanges(
             "estado" to estado,
             "hora" to hora,
             "latitud" to (latitud ?: ""),
-            "longitud" to (longitud ?: "")
-        )//nuevo
+            "longitud" to (longitud ?: ""),
+            "operarios" to operarios
+        )
 
         estadosDelDia.add(registro)//nuevo
 
@@ -430,6 +608,50 @@ fun getLatestJsonFileName(context: Context): String? {
     return files?.maxByOrNull { it.lastModified() }?.name
 }
 
+fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
+    val latestFile = getLatestJsonFileName(context) ?: return emptyList()
+    val file = File(context.filesDir, latestFile)
+    if (!file.exists()) return emptyList()
+
+    return try {
+        val json = FileReader(file).use { it.readText() }
+        val jsonData: Map<String, Any> =
+            Gson().fromJson(json, object : TypeToken<Map<String, Any>>() {}.type) ?: return emptyList()
+
+        // Última fecha "yyyy-MM-dd"
+        val lastDate = jsonData.keys
+            .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
+            .maxOrNull() ?: return emptyList()
+
+        val estados = jsonData[lastDate] as? List<Map<String, Any>> ?: return emptyList()
+        if (estados.isEmpty()) return emptyList()
+
+        // ✅ Última marcación (último elemento del día)
+        val lastRegistro = estados.last()
+        val lastEstado = (lastRegistro["estado"] as? String)?.trim()
+
+        // ✅ Si la última marcación fue "Fuera de Turno", NO precargar operarios
+        if (lastEstado.equals("Fuera de Turno", ignoreCase = true)) {
+            return emptyList()
+        }
+
+        // Si no fue Fuera de Turno, toma el último registro que tenga operarios
+        val lastWithOps = estados.asReversed().firstOrNull { it["operarios"] != null } ?: return emptyList()
+
+        when (val opsAny = lastWithOps["operarios"]) {
+            is List<*> -> opsAny
+                .mapNotNull { it?.toString()?.trim() }
+                .filter { it.isNotEmpty() }
+            else -> emptyList()
+        }
+    } catch (e: Exception) {
+        FileLogger.e("JSON", "❌ Error leyendo últimos operarios: ${e.message}")
+        emptyList()
+    }
+}
+
+fun normalizaNombre(s: String): String =
+    s.trim().replace(Regex("\\s+"), " ").uppercase()
 
 
 
