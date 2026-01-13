@@ -232,15 +232,12 @@ fun MenuContent(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val cargosQueRequierenOperarios = remember {
-        setOf(
-            "SUPERVISOR DE MONTAJE", "SUPERVISOR DE MECANIZADO"
-            // agrega aquí otros cargos que deban gestionar operarios
-        ).map { normalizaNombre(it) }.toSet()
+    fun requiereOperariosPorCargo(cargo: String?): Boolean {
+        val cargoNorm = normalizaNombre(cargo ?: "")
+        return Regex("\\bSUPERVISOR\\b").containsMatchIn(cargoNorm)
     }
 
-    val cargoUsuario = normalizaNombre(loggedUserCargo ?: "")
-    val requiereOperarios = cargoUsuario in cargosQueRequierenOperarios
+    val requiereOperarios = requiereOperariosPorCargo(loggedUserCargo)
 
     var pendingEstado by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingHora by rememberSaveable { mutableStateOf<String?>(null) }
@@ -258,7 +255,6 @@ fun MenuContent(
         return dateFormat.format(Date())
     }
 
-    // ✅ Botón fijo abajo
     Scaffold(
         bottomBar = {
             if (requiereOperarios && pendingEstado != null && pendingHora != null) {
