@@ -1,47 +1,44 @@
 package com.example.horas_extra_tecnipalma
 
 import android.content.Context
-import android.content.Intent//
+import android.content.Intent
 import android.os.Bundle
-
 import kotlinx.coroutines.launch
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.Dp
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.ImeAction
+import androidx.navigation.compose.rememberNavController
 
 import com.example.horas_extra_tecnipalma.ui.theme.Horas_Extra_TecnipalmaTheme
-
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -65,19 +62,18 @@ fun necesitaLogin(context: Context): Boolean {
     val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
     val ultimoEstado = prefs.getString("ultimoEstado", "")
     return ultimoEstado == "Fuera de Turno"
-}//nueva
+}
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         if (necesitaLogin(this)) {
-
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
             finish()
             return
-        }//nuevo
+        }
 
         setContent {
             Horas_Extra_TecnipalmaTheme {
@@ -94,15 +90,17 @@ class HomeActivity : ComponentActivity() {
             startActivity(intent)
             finish()
         }
-    }//nuevo
+    }
 }
+
+
 @Composable
 fun DrawerContent(onItemSelected: (String) -> Unit) {
     BoxWithConstraints {
         val fontSize = when {
-            maxWidth < 360.dp -> 16.sp  // celulares pequeños
-            maxWidth < 600.dp -> 18.sp  // celulares normales
-            else -> 24.sp               // tabletas
+            maxWidth < 360.dp -> 16.sp
+            maxWidth < 600.dp -> 18.sp
+            else -> 24.sp
         }
 
         val padding = when {
@@ -117,10 +115,8 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
         }
 
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1BA1BF)),
-            color = Color.Transparent
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.primaryContainer
         ) {
             Column(
                 modifier = Modifier
@@ -137,6 +133,7 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
     }
 }
 
+
 @Composable
 fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: Dp) {
     Text(
@@ -147,7 +144,7 @@ fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: D
             .padding(all = padding),
         fontSize = fontSize,
         fontWeight = FontWeight.Bold,
-        color = Color.White
+        color = MaterialTheme.colorScheme.onPrimaryContainer
     )
 }
 
@@ -156,16 +153,19 @@ fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: D
 @Composable
 fun MenuScreen(context: Context) {
     val selectedOption = rememberSaveable { mutableStateOf("") }
-    val selectedTime   = rememberSaveable { mutableStateOf("") }
-
+    val selectedTime = rememberSaveable { mutableStateOf("") }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val navController = rememberNavController()
-    val stateChanges = remember{mutableStateListOf<StateChangeRecord>()}
+    val stateChanges = remember { mutableStateListOf<StateChangeRecord>() }
 
     ModalNavigationDrawer(
         drawerContent = {
-            if (drawerState.isOpen) {
+            ModalDrawerSheet(
+                modifier = Modifier.width(200.dp),
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerContentColor = MaterialTheme.colorScheme.onSurface
+            ) {
                 DrawerContent { route ->
                     scope.launch {
                         drawerState.close()
@@ -177,9 +177,20 @@ fun MenuScreen(context: Context) {
         drawerState = drawerState
     ) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopAppBar(
-                    title = { Text(text = "Menu") },
+                    title = {
+                        Text(
+                            text = "Menu",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
                     navigationIcon = {
                         IconButton(
                             onClick = {
@@ -208,19 +219,20 @@ fun MenuScreen(context: Context) {
                         context = context,
                         stateChanges = stateChanges,
                         selectedOption = selectedOption.value,
-                        selectedTime   = selectedTime.value,
-                        onOptionChosen = { opción, hora ->
-                            selectedOption.value = opción
-                            selectedTime.value   = hora
+                        selectedTime = selectedTime.value,
+                        onOptionChosen = { opcion, hora ->
+                            selectedOption.value = opcion
+                            selectedTime.value = hora
                         }
                     )
                 }
-                composable("reporte") { ReporteScreen(stateChanges) }
+                composable("reporte") { ReporteScreen() }
                 composable("config") { ConfigScreen() }
             }
         }
     }
 }
+
 
 @Composable
 fun MenuContent(
@@ -238,15 +250,12 @@ fun MenuContent(
     }
 
     val requiereOperarios = requiereOperariosPorCargo(loggedUserCargo)
-
     var pendingEstado by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingHora by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLat by rememberSaveable { mutableStateOf<Double?>(null) }
     var pendingLon by rememberSaveable { mutableStateOf<Double?>(null) }
-
     val operariosPendientes = remember { mutableStateListOf<String>() }
     var errorOperarios by rememberSaveable { mutableStateOf<String?>(null) }
-
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -256,12 +265,21 @@ fun MenuContent(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (requiereOperarios && pendingEstado != null && pendingHora != null) {
-                Column(Modifier.fillMaxWidth().padding(16.dp)) {
-
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(16.dp)
+                ) {
                     if (errorOperarios != null) {
-                        Text(text = errorOperarios!!, color = Color.Red, fontSize = 13.sp)
+                        Text(
+                            text = errorOperarios!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
@@ -312,10 +330,10 @@ fun MenuContent(
         }
     ) { innerPadding ->
 
-        // ✅ El contenido arriba sí puede crecer y hacer scroll, sin tapar el botón
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
@@ -331,30 +349,40 @@ fun MenuContent(
                     .padding(bottom = 32.dp)
             )
 
-            // ---- Tu UI actual (dropdown, texto, etc.)
             Box {
                 Button(
                     onClick = { expanded = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (selectedOption.isNotEmpty()) "Estado: $selectedOption " else "Selecciona el Estado"
+                        text = if (selectedOption.isNotEmpty()) {
+                            "Estado: $selectedOption"
+                        } else {
+                            "Selecciona el Estado"
+                        }
                     )
                 }
 
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    containerColor = MaterialTheme.colorScheme.surface
                 ) {
                     listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno")
                         .forEach { state ->
                             DropdownMenuItem(
-                                text = { Text(text = state) },
+                                text = {
+                                    Text(
+                                        text = state,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
                                 onClick = {
                                     val horaActual = getCurrentTime()
                                     scope.launch {
                                         var lat: Double? = null
                                         var lon: Double? = null
+
                                         try {
                                             val ubicacion = context.getLastKnownLocation()
                                             if (ubicacion != null) {
@@ -372,12 +400,37 @@ fun MenuContent(
 
                                         operariosPendientes.clear()
 
-// ✅ Si es un usuario con permiso, precarga la lista anterior
                                         if (requiereOperarios) {
                                             operariosPendientes.addAll(getUltimosOperariosDesdeUltimoJson(context))
-                                        }
+                                            errorOperarios = null
+                                        } else {
+                                            val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
-                                        errorOperarios = null
+                                            stateChanges.add(
+                                                StateChangeRecord(
+                                                    estado = state,
+                                                    hora = horaActual,
+                                                    fecha = fechaHoy,
+                                                    latitud = lat,
+                                                    longitud = lon,
+                                                    operarios = emptyList()
+                                                )
+                                            )
+
+                                            saveStateChanges(
+                                                context = context,
+                                                estado = state,
+                                                hora = horaActual,
+                                                latitud = lat,
+                                                longitud = lon,
+                                                operarios = emptyList()
+                                            )
+
+                                            pendingEstado = null
+                                            pendingHora = null
+                                            pendingLat = null
+                                            pendingLon = null
+                                        }
 
                                         expanded = false
                                     }
@@ -394,7 +447,7 @@ fun MenuContent(
                     text = "$selectedOption - $selectedTime",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -406,7 +459,6 @@ fun MenuContent(
                 )
             }
 
-            // ✅ Este espacio evita que el último contenido quede debajo del bottomBar
             Spacer(modifier = Modifier.height(120.dp))
         }
     }
@@ -424,7 +476,8 @@ fun OperariosSection(
         Text(
             text = "Operarios",
             fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -435,7 +488,7 @@ fun OperariosSection(
         ) {
             OutlinedTextField(
                 value = nuevoOperario,
-                onValueChange = { nuevoOperario = it.filter { ch -> ch.isDigit() } }, // opcional: solo números
+                onValueChange = { nuevoOperario = it.filter { ch -> ch.isDigit() } },
                 enabled = enabled,
                 modifier = Modifier.weight(1f),
                 label = { Text("Cedula del Operario") },
@@ -467,14 +520,14 @@ fun OperariosSection(
         if (operarios.isEmpty()) {
             Text(
                 text = "Aún no has agregado operarios.",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 220.dp) // ✅ la lista crece hasta 220dp y luego hace scroll
+                    .heightIn(max = 220.dp)
             ) {
                 items(operarios.size) { index ->
                     val nombre = operarios[index]
@@ -484,21 +537,26 @@ fun OperariosSection(
                     ) {
                         Text(
                             text = "• $nombre",
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
                             onClick = { operarios.removeAt(index) },
                             enabled = enabled
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar operario")
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Eliminar operario",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
             }
-
         }
     }
 }
+
 
 fun saveStateChanges(
     context: Context,
@@ -526,7 +584,7 @@ fun saveStateChanges(
                 Gson().fromJson(existingJson, object : TypeToken<MutableMap<String, Any>>() {}.type)
                     ?: mutableMapOf()
             } catch (e: Exception) {
-                FileLogger.e("JSON", "❌ ERROR al parsear el JSON existente: ${e.message}")
+                FileLogger.e("JSON", "ERROR al parsear el JSON existente: ${e.message}")
                 mutableMapOf()
             }
         } else {
@@ -534,7 +592,6 @@ fun saveStateChanges(
                 "usuario" to mapOf(
                     "Identificacion" to (loggedUserId?.toString() ?: ""),
                     "Nombre" to (loggedUserName ?: "No disponible"),
-                    //"Ubicacion" to (loggedUserLocation ?: "No seleccionada"),
                     "NumeroOT" to (loggedUserNumeroOT ?: "")
                 ),
                 fechaHoy to mutableListOf<Map<String, Any>>()
@@ -552,7 +609,7 @@ fun saveStateChanges(
             "operarios" to operarios
         )
 
-        estadosDelDia.add(registro)//nuevo
+        estadosDelDia.add(registro)
 
         if (estado == "Fuera de Turno") {
             val fechaSalida = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
@@ -563,18 +620,18 @@ fun saveStateChanges(
         val json = Gson().toJson(jsonData)
         FileWriter(file).use { it.write(json) }
 
-        FileLogger.d("JSON", "📂 JSON COMPLETO en archivo $fileName:\n$json")
+        FileLogger.d("JSON", "JSON COMPLETO en archivo $fileName:\n$json")
 
-        // ─── GUARDAMOS EN SharedPreferences EL ULTIMO ESTADO ───
         val prefs = context.getSharedPreferences("horas_extra_prefs", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("ultimoEstado", estado)
-            .apply()//nuevo
+            .apply()
 
     } catch (e: Exception) {
-        FileLogger.e("JSON", "❌ ERROR al guardar el estado en JSON: ${e.message}")
+        FileLogger.e("JSON", "ERROR al guardar el estado en JSON: ${e.message}")
     }
 }
+
 
 fun lastTurnHadExit(context: Context): Boolean {
     val latestFile = getLatestJsonFileName(context) ?: return false
@@ -584,7 +641,8 @@ fun lastTurnHadExit(context: Context): Boolean {
 
     return try {
         val json = FileReader(file).use { it.readText() }
-        val jsonData: MutableMap<String, Any> = Gson().fromJson(json, object : TypeToken<MutableMap<String, Any>>() {}.type) ?: mutableMapOf()
+        val jsonData: MutableMap<String, Any> =
+            Gson().fromJson(json, object : TypeToken<MutableMap<String, Any>>() {}.type) ?: mutableMapOf()
 
         val lastDate = jsonData.keys.filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }.maxOrNull() ?: return false
         val estados = jsonData[lastDate] as? List<Map<String, String>> ?: return false
@@ -594,15 +652,19 @@ fun lastTurnHadExit(context: Context): Boolean {
         }
 
     } catch (e: Exception) {
-        FileLogger.e("JSON", "❌ ERROR al verificar 'Fuera de Turno': ${e.message}")
+        FileLogger.e("JSON", "ERROR al verificar 'Fuera de Turno': ${e.message}")
         false
     }
 }
 
+
 fun getLatestJsonFileName(context: Context): String? {
-    val files = context.filesDir.listFiles { _, name -> name.startsWith("estado_") && name.endsWith(".json") }
+    val files = context.filesDir.listFiles { _, name ->
+        name.startsWith("estado_") && name.endsWith(".json")
+    }
     return files?.maxByOrNull { it.lastModified() }?.name
 }
+
 
 fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
     val latestFile = getLatestJsonFileName(context) ?: return emptyList()
@@ -613,25 +675,20 @@ fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
         val json = FileReader(file).use { it.readText() }
         val jsonData: Map<String, Any> =
             Gson().fromJson(json, object : TypeToken<Map<String, Any>>() {}.type) ?: return emptyList()
-
-        // Última fecha "yyyy-MM-dd"
         val lastDate = jsonData.keys
             .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
             .maxOrNull() ?: return emptyList()
-
         val estados = jsonData[lastDate] as? List<Map<String, Any>> ?: return emptyList()
+
         if (estados.isEmpty()) return emptyList()
 
-        // ✅ Última marcación (último elemento del día)
         val lastRegistro = estados.last()
         val lastEstado = (lastRegistro["estado"] as? String)?.trim()
 
-        // ✅ Si la última marcación fue "Fuera de Turno", NO precargar operarios
         if (lastEstado.equals("Fuera de Turno", ignoreCase = true)) {
             return emptyList()
         }
 
-        // Si no fue Fuera de Turno, toma el último registro que tenga operarios
         val lastWithOps = estados.asReversed().firstOrNull { it["operarios"] != null } ?: return emptyList()
 
         when (val opsAny = lastWithOps["operarios"]) {
@@ -641,14 +698,11 @@ fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
             else -> emptyList()
         }
     } catch (e: Exception) {
-        FileLogger.e("JSON", "❌ Error leyendo últimos operarios: ${e.message}")
+        FileLogger.e("JSON", "Error leyendo últimos operarios: ${e.message}")
         emptyList()
     }
 }
 
+
 fun normalizaNombre(s: String): String =
     s.trim().replace(Regex("\\s+"), " ").uppercase()
-
-
-
-

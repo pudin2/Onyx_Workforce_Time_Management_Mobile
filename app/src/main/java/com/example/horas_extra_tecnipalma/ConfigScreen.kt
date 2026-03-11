@@ -1,5 +1,6 @@
 package com.example.horas_extra_tecnipalma
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -9,34 +10,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.graphics.Color
 
 import java.util.Calendar
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigScreen() {
 
     val calendar = Calendar.getInstance()
     val currentYear = calendar.get(Calendar.YEAR).toString()
     val currentMonth = (calendar.get(Calendar.MONTH) + 1).toString()
-    // Lista de detalles
+
     val detalles = listOf("Año", "Mes")
-    // Lista mutable para los valores editables
     val valores = remember { mutableStateListOf(currentYear, currentMonth) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Detalle",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            ),
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        // Tabla simulada
+
         detalles.forEachIndexed { index, detalle ->
             Row(
                 modifier = Modifier
@@ -45,39 +50,61 @@ fun ConfigScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Columna de detalle (Texto estático)
                 Text(
                     text = detalle,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .weight(1f)
                         .padding(8.dp)
                 )
-                // Campo editable o deshabilitado si es "Año"
+
                 if (index == 0 || index == 1) {
-                    // Campo deshabilitado para "Año"
-                    TextField(
+                    OutlinedTextField(
                         value = valores[index],
                         onValueChange = {},
                         enabled = false,
                         modifier = Modifier
                             .weight(1f)
-                            .padding(start = 8.dp)
+                            .padding(start = 8.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
                 } else {
-                    // Campos editables para los demás detalles
-                    TextField(
+                    OutlinedTextField(
                         value = valores[index],
                         onValueChange = { valores[index] = it },
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 8.dp),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
                 }
             }
-            // Línea divisoria para separar cada fila
-            Divider(color = Color.LightGray, thickness = 1.dp)
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
         }
     }
 }

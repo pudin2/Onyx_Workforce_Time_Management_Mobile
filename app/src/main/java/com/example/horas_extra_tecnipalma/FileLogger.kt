@@ -9,15 +9,16 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+
 object FileLogger {
     private lateinit var logFile: File
     private val dateFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     private const val RETENTION_DAYS = 7L
 
     fun init(context: Context) {
-        // Usa almacenamiento externo privado
+
         val logsDir = context.getExternalFilesDir("logs")
-            ?: File(context.filesDir, "logs") // fallback
+            ?: File(context.filesDir, "logs")
         if (!logsDir.exists()) logsDir.mkdirs()
         logFile = File(logsDir, "app.log")
     }
@@ -42,18 +43,12 @@ object FileLogger {
             val ts = Date()
             val tsText = dateFmt.format(ts)
             val newEntry = "[$tsText] $tag: $message"
-
-            // Leer contenido existente
             val existing = if (::logFile.isInitialized && logFile.exists()) {
                 logFile.readText()
             } else {
                 ""
             }
-
-            // Calcular fecha de corte
             val cutoff = Date(ts.time - RETENTION_DAYS * 24 * 60 * 60 * 1000)
-
-            // Filtrar líneas recientes
             val filteredLines = existing
                 .lines()
                 .mapNotNull { line ->
@@ -67,14 +62,11 @@ object FileLogger {
                                     return@mapNotNull line
                                 }
                             } catch (pe: ParseException) {
-                                // Si no se puede parsear, descartamos línea antigua
                             }
                         }
                     }
                     null
                 }
-
-            // Reconstruir contenido con la nueva entrada primero
             val newContent = buildString {
                 append(newEntry)
                 append("\n")
