@@ -1,8 +1,10 @@
 package com.example.horas_extra_tecnipalma
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import kotlinx.coroutines.launch
 
 import androidx.activity.ComponentActivity
@@ -64,6 +66,14 @@ fun necesitaLogin(context: Context): Boolean {
     return ultimoEstado == "Fuera de Turno"
 }
 
+fun mostrarNotificacionMarcacion(context: Context, estado: String) {
+    Toast.makeText(
+        context,
+        "Ubicación reportada en la marcación: $estado",
+        Toast.LENGTH_SHORT
+    ).show()
+}
+
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,7 +103,7 @@ class HomeActivity : ComponentActivity() {
     }
 }
 
-
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun DrawerContent(onItemSelected: (String) -> Unit) {
     BoxWithConstraints {
@@ -133,7 +143,6 @@ fun DrawerContent(onItemSelected: (String) -> Unit) {
     }
 }
 
-
 @Composable
 fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: Dp) {
     Text(
@@ -147,7 +156,6 @@ fun DrawerItem(text: String, onClick: () -> Unit, fontSize: TextUnit, padding: D
         color = MaterialTheme.colorScheme.onPrimaryContainer
     )
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -233,7 +241,6 @@ fun MenuScreen(context: Context) {
     }
 }
 
-
 @Composable
 fun MenuContent(
     context: Context,
@@ -255,7 +262,6 @@ fun MenuContent(
     var pendingLat by rememberSaveable { mutableStateOf<Double?>(null) }
     var pendingLon by rememberSaveable { mutableStateOf<Double?>(null) }
     val operariosPendientes = remember { mutableStateListOf<String>() }
-    var errorOperarios by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -274,23 +280,9 @@ fun MenuContent(
                         .background(MaterialTheme.colorScheme.surface)
                         .padding(16.dp)
                 ) {
-                    if (errorOperarios != null) {
-                        Text(
-                            text = errorOperarios!!,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            if (operariosPendientes.isEmpty()) {
-                                errorOperarios = "Debes agregar al menos un operario."
-                                return@Button
-                            }
-
                             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
                             val estado = pendingEstado!!
                             val hora = pendingHora!!
@@ -315,12 +307,13 @@ fun MenuContent(
                                 operarios = operariosPendientes.toList()
                             )
 
+                            mostrarNotificacionMarcacion(context, estado)
+
                             pendingEstado = null
                             pendingHora = null
                             pendingLat = null
                             pendingLon = null
                             operariosPendientes.clear()
-                            errorOperarios = null
                         }
                     ) {
                         Text("Guardar estado")
@@ -368,7 +361,7 @@ fun MenuContent(
                     onDismissRequest = { expanded = false },
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
-                    listOf("En Turno", "Pausa Activa", "Almuerzo", "Descanso", "Fuera de Turno")
+                    listOf("En Turno", "Alimentacion", "Fuera de Turno")
                         .forEach { state ->
                             DropdownMenuItem(
                                 text = {
@@ -389,7 +382,8 @@ fun MenuContent(
                                                 lat = ubicacion.latitude
                                                 lon = ubicacion.longitude
                                             }
-                                        } catch (_: Exception) {}
+                                        } catch (_: Exception) {
+                                        }
 
                                         pendingEstado = state
                                         pendingHora = horaActual
@@ -402,7 +396,6 @@ fun MenuContent(
 
                                         if (requiereOperarios) {
                                             operariosPendientes.addAll(getUltimosOperariosDesdeUltimoJson(context))
-                                            errorOperarios = null
                                         } else {
                                             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
@@ -425,6 +418,8 @@ fun MenuContent(
                                                 longitud = lon,
                                                 operarios = emptyList()
                                             )
+
+                                            mostrarNotificacionMarcacion(context, state)
 
                                             pendingEstado = null
                                             pendingHora = null
@@ -464,7 +459,6 @@ fun MenuContent(
     }
 }
 
-
 @Composable
 fun OperariosSection(
     operarios: MutableList<String>,
@@ -474,7 +468,7 @@ fun OperariosSection(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Operarios",
+            text = "Operarios (opcional)",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -519,7 +513,7 @@ fun OperariosSection(
 
         if (operarios.isEmpty()) {
             Text(
-                text = "Aún no has agregado operarios.",
+                text = "Puedes guardar la marcación sin agregar operarios.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
@@ -556,7 +550,6 @@ fun OperariosSection(
         }
     }
 }
-
 
 fun saveStateChanges(
     context: Context,
@@ -632,7 +625,6 @@ fun saveStateChanges(
     }
 }
 
-
 fun lastTurnHadExit(context: Context): Boolean {
     val latestFile = getLatestJsonFileName(context) ?: return false
     val file = File(context.filesDir, latestFile)
@@ -657,14 +649,12 @@ fun lastTurnHadExit(context: Context): Boolean {
     }
 }
 
-
 fun getLatestJsonFileName(context: Context): String? {
     val files = context.filesDir.listFiles { _, name ->
         name.startsWith("estado_") && name.endsWith(".json")
     }
     return files?.maxByOrNull { it.lastModified() }?.name
 }
-
 
 fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
     val latestFile = getLatestJsonFileName(context) ?: return emptyList()
@@ -702,7 +692,6 @@ fun getUltimosOperariosDesdeUltimoJson(context: Context): List<String> {
         emptyList()
     }
 }
-
 
 fun normalizaNombre(s: String): String =
     s.trim().replace(Regex("\\s+"), " ").uppercase()

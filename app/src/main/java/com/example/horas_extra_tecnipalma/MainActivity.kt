@@ -19,6 +19,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -59,10 +63,18 @@ class MainActivity : ComponentActivity() {
             val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
             if (!notifGranted) {
-                Toast.makeText(this, "Sin permiso de notificaciones, no recibirá alertas del servidor.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Sin permiso de notificaciones, no recibirá alertas del servidor.",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             if (!fineGranted && !coarseGranted) {
-                Toast.makeText(this, "Sin permiso de ubicación, no podrá obtener coordenadas.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Sin permiso de ubicación, no podrá obtener coordenadas.",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -110,8 +122,9 @@ fun LoginScreen(context: Context) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var numeroOT by remember { mutableStateOf("") }
-    var tipoIngreso by remember { mutableStateOf("Planta") }
+    var tipoIngreso by remember { mutableStateOf("Montaje") }
     var expanded by remember { mutableStateOf(false) }
+    var showPassword by remember { mutableStateOf(false) }
 
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateVersionName by remember { mutableStateOf("") }
@@ -190,7 +203,11 @@ fun LoginScreen(context: Context) {
                     onClick = {
                         val apkFile = File(updateApkPath)
                         if (!apkFile.exists()) {
-                            Toast.makeText(context, "No se encontró el archivo de actualización.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "No se encontró el archivo de actualización.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             showUpdateDialog = false
                             return@TextButton
                         }
@@ -319,8 +336,28 @@ fun LoginScreen(context: Context) {
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Contraseña") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) {
+                                Icons.Filled.VisibilityOff
+                            } else {
+                                Icons.Filled.Visibility
+                            },
+                            contentDescription = if (showPassword) {
+                                "Ocultar contraseña"
+                            } else {
+                                "Mostrar contraseña"
+                            }
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
