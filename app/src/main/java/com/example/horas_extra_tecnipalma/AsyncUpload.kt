@@ -46,16 +46,16 @@ class FtpUploadWorker(context: Context, workerParams: WorkerParameters) : Worker
 
     private val ftpConfigs = listOf(
         FtpConfig(
-            server = "190.65.63.135",
+            server = "server_ip",
             port = 921,
-            user = "usrServicios",
-            pass = "pruebas123"
+            user = "user_name",
+            pass = "user_password"
         ),
         FtpConfig(
-            server = "192.168.10.17",
+            server = "server_ip",
             port = 921,
-            user = "usrServiciosLocal",
-            pass = "pruebas123"
+            user = "user_name",
+            pass = "user_password
         )
     )
 
